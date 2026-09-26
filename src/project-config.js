@@ -146,3 +146,51 @@ export function readProjectConfig(projectPath) {
     config,
   };
 }
+
+/* ============================================================
+   PROJECT CONFIG WRITER
+============================================================ */
+
+export function writeProjectConfig(
+  projectPath,
+  config,
+) {
+  const validation = validateProjectConfig(config);
+
+  if (!validation.valid) {
+    return {
+      success: false,
+      reason: validation.reason,
+      message: validation.message,
+    };
+  }
+
+  const configPath = path.join(
+    projectPath,
+    CONFIG_FILE_NAME,
+  );
+
+  try {
+    fs.writeFileSync(
+      configPath,
+      `${JSON.stringify(config, null, 2)}\n`,
+      "utf8",
+    );
+  } catch {
+    return {
+      success: false,
+      reason: "CONFIG_WRITE_ERROR",
+      message:
+        `Unable to write "${CONFIG_FILE_NAME}".`,
+      configPath,
+    };
+  }
+
+  return {
+    success: true,
+    reason: "CONFIG_WRITTEN",
+    message: null,
+    configPath,
+    config,
+  };
+}
