@@ -1,6 +1,7 @@
 import { validateProjectName } from "./project-name.js";
 import { createProjectDirectory } from "./create-project.js";
 import { createProjectMetadata } from "./project-metadata.js";
+import { scaffoldProject } from "./scaffold-project.js";
 import { detail, error, info, success } from "./logger.js";
 
 const VERSION = "0.0.1";
@@ -104,6 +105,20 @@ const metadataResult = createProjectMetadata(
 
 success("Created Afrobase project metadata:");
 detail(metadataResult.metadataPath);
+info("");
+
+const scaffoldResult = scaffoldProject(result.projectPath);
+
+if (!scaffoldResult.success) {
+  error(scaffoldResult.message);
+  info("");
+
+  process.exit(1);
+}
+
+success("Created Afrobase project scaffold:");
+detail(scaffoldResult.afrobaseDirectory);
+detail(scaffoldResult.gitignorePath);
 info("");
 
 success("Afrobase project is ready.");
