@@ -1,0 +1,32 @@
+{
+  "name": "create-afrobase",
+  "version": "0.0.1",
+  "description": "Create applications powered by Afrobase — African digital infrastructure for modern applications.",
+  "type": "module",
+  "bin": {
+    "create-afrobase": "./bin/create-afrobase.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "start": "node ./bin/create-afrobase.js",
+    "test": "node ./bin/create-afrobase.js --help"
+  },
+  "keywords": [
+    "afrobase",
+    "africa",
+    "backend",
+    "baas",
+    "developer-tools",
+    "cli",
+    "payments",
+    "mpesa"
+  ],
+  "author": "Sam Charo",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}
