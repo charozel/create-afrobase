@@ -1,6 +1,7 @@
 import { validateProjectName } from "./project-name.js";
 import { createProjectDirectory } from "./create-project.js";
 import { createProjectMetadata } from "./project-metadata.js";
+import { readProjectConfig } from "./project-config.js";
 import { scaffoldProject } from "./scaffold-project.js";
 import { detail, error, info, success } from "./logger.js";
 
@@ -119,6 +120,22 @@ if (!scaffoldResult.success) {
 success("Created Afrobase project scaffold:");
 detail(scaffoldResult.afrobaseDirectory);
 detail(scaffoldResult.gitignorePath);
+info("");
+
+const configResult = readProjectConfig(
+  result.projectPath,
+);
+
+if (!configResult.success) {
+  error("Afrobase project configuration could not be verified.");
+  detail(configResult.message);
+  info("");
+
+  process.exit(1);
+}
+
+success("Verified Afrobase project configuration.");
+detail(configResult.configPath);
 info("");
 
 success("Afrobase project is ready.");
