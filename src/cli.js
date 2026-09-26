@@ -1,9 +1,14 @@
+import { validateProjectName } from "./project-name.js";
+import { createProjectDirectory } from "./create-project.js";
+import { createProjectMetadata } from "./project-metadata.js";
+import { detail, error, info, success } from "./logger.js";
+
 const VERSION = "0.0.1";
 
 const args = process.argv.slice(2);
 
 function printLogo() {
-  console.log(`
+  info(`
     _     __          __
    / \\   / _|_ __ ___| |__   __ _ ___  ___
   / _ \\ | |_| '__/ _ \\ '_ \\ / _\` / __|/ _ \\
@@ -17,7 +22,7 @@ African digital infrastructure.
 function printHelp() {
   printLogo();
 
-  console.log(`Usage:
+  info(`Usage:
   create-afrobase [project-name] [options]
 
 Options:
@@ -32,7 +37,7 @@ Examples:
 }
 
 if (args.includes("--version") || args.includes("-v")) {
-  console.log(VERSION);
+  info(VERSION);
   process.exit(0);
 }
 
@@ -45,12 +50,61 @@ const projectName = args.find((arg) => !arg.startsWith("-"));
 
 printLogo();
 
-if (projectName) {
-  console.log(`Project: ${projectName}\n`);
+if (!projectName) {
+  info("Welcome to Afrobase.");
+  info("");
+  info("To create a project, provide a project name:");
+  info("");
+  detail("npx create-afrobase@latest my-app");
+  info("");
+
+  process.exit(0);
 }
 
-console.log("Welcome to Afrobase.");
-console.log("");
-console.log("The create-afrobase CLI is currently under active development.");
-console.log("Project scaffolding will be available in an upcoming release.");
-console.log("");
+const validation = validateProjectName(projectName);
+
+if (!validation.valid) {
+  error(`Invalid project name: "${projectName}"`);
+  detail(validation.message);
+  info("");
+  info("Example:");
+  detail("npx create-afrobase@latest my-app");
+  info("");
+
+  process.exit(1);
+}
+
+info(`Project: ${projectName}`);
+info("");
+success("Project name is valid.");
+info("");
+
+const result = createProjectDirectory(projectName);
+
+if (!result.success) {
+  error(result.message);
+  info("");
+
+  process.exit(1);
+}
+
+if (result.created) {
+  success(`Created project directory: ${projectName}`);
+} else {
+  success(`Using existing empty directory: ${projectName}`);
+}
+
+detail(result.projectPath);
+info("");
+
+const metadataResult = createProjectMetadata(
+  result.projectPath,
+  projectName,
+);
+
+success("Created Afrobase project metadata:");
+detail(metadataResult.metadataPath);
+info("");
+
+success("Afrobase project is ready.");
+info("");
