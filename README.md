@@ -1,54 +1,115 @@
 # create-afrobase
 
-The official CLI for creating applications powered by **Afrobase**.
+The official CLI for creating projects powered by **Afrobase**.
 
-Afrobase is African digital infrastructure for modern applications — designed to provide developers with a unified foundation for data, authentication, realtime applications, content, payments, security, and African digital infrastructure.
+Afrobase is African digital infrastructure for modern applications, designed to
+provide a unified foundation for data, identity, realtime applications, content,
+functions, money, security, and other application infrastructure.
 
-## Getting Started
+## Getting started
 
-The recommended way to start a new Afrobase project is:
-
-```bash
-npx create-afrobase@latest
-```
-
-This runs the latest version of the `create-afrobase` CLI.
-
-## Create a Named Project
-
-You can provide your project name directly:
+Create a new Afrobase project:
 
 ```bash
 npx create-afrobase@latest my-app
 ```
 
-For example:
+You can also use npm's initializer syntax:
 
 ```bash
-npx create-afrobase@latest my-fintech
+npm create afrobase@latest my-app
 ```
 
-The project name is passed directly to the Afrobase CLI.
+The CLI creates a framework-neutral Afrobase project foundation. It does not
+generate a Next.js, React, Node.js, or other application framework.
 
-## Using npm create
+## Generated project
 
-Afrobase can also be started using npm's initializer syntax:
+Running:
 
 ```bash
-npm create afrobase@latest
+npx create-afrobase@latest my-app
 ```
 
-This is an alternative to:
+creates:
 
-```bash
-npx create-afrobase@latest
+```text
+my-app/
+├── afrobase/
+│   └── README.md
+├── .env.example
+├── .gitignore
+└── afrobase.json
 ```
 
-Both commands run the `create-afrobase` initializer package.
+### `afrobase.json`
 
-## CLI Usage
+`afrobase.json` is the project's Afrobase configuration file.
 
-Once installed or linked locally, the CLI command is:
+A newly created local project starts with:
+
+```json
+{
+  "name": "my-app",
+  "platform": "afrobase",
+  "version": 1
+}
+```
+
+The configuration may later include an Afrobase Cloud project identity after
+the project is linked.
+
+Project identity belongs in `afrobase.json`. Secret credentials do not.
+
+### `.env.example`
+
+The generated environment template defines the runtime credential contract:
+
+```dotenv
+AFROBASE_PUBLISHABLE_KEY=
+AFROBASE_SECRET_KEY=
+```
+
+Real credentials should be supplied through the application's environment and
+must not be stored in `afrobase.json` or the `afrobase/` directory.
+
+### `afrobase/`
+
+The `afrobase/` directory is reserved for project-level Afrobase resources and
+configuration as platform capabilities are enabled.
+
+The generated `afrobase/README.md` contains project configuration and connection
+guidance.
+
+## Project model
+
+Afrobase separates project identity from runtime credentials:
+
+```text
+Application
+    |
+    +-- afrobase.json
+    |      Project identity and configuration
+    |
+    +-- environment
+           Runtime credentials
+```
+
+This separation keeps the project model framework-neutral and prevents secrets
+from becoming part of committed project configuration.
+
+## Afrobase Cloud
+
+A project created by `create-afrobase` begins as a local Afrobase project.
+
+Cloud authentication, Cloud project creation, and project linking are separate
+Afrobase operations. They are not performed automatically by
+`create-afrobase`.
+
+The current initializer does not generate Cloud project IDs, API keys, secret
+keys, or access tokens.
+
+## CLI usage
 
 ```bash
 create-afrobase [project-name] [options]
@@ -62,34 +123,59 @@ create-afrobase --help
 create-afrobase --version
 ```
 
-## Options
+### Options
 
 ```text
 -h, --help       Show CLI help
 -v, --version    Show CLI version
 ```
 
-## Current Status
+If no project name is supplied, the CLI displays guidance instead of creating a
+project.
 
-`create-afrobase` is currently under active development.
+## Safety
 
-Version `0.0.1` establishes the initial Afrobase CLI and developer experience.
+The initializer is intentionally conservative.
 
-The current CLI supports:
+It:
 
-- CLI execution
-- Project-name arguments
-- Help output
-- Version output
+- validates project names before creating files
+- refuses non-empty destination directories
+- refuses conflicting scaffold files
+- validates the generated Afrobase project configuration
+- does not generate fake Cloud identities
+- does not generate or store secret credentials
+- does not expose Afrobase's private infrastructure
+- does not assume an application framework
 
-Full project scaffolding and Afrobase Cloud provisioning are planned for future releases.
+## Current status
 
-## Planned Afrobase Capabilities
+`create-afrobase` is under active development.
 
-Afrobase is being designed around integrated platform capabilities including:
+Version `0.0.1` currently establishes:
+
+- project-name validation
+- safe project-directory creation
+- Afrobase project metadata
+- framework-neutral project scaffolding
+- validated `afrobase.json` configuration
+- local and Cloud project identity semantics
+- guarded project link and unlink primitives
+- environment credential contracts
+- project-state inspection
+- generated project guidance
+- developer-facing completion output
+
+Cloud authentication, Cloud project provisioning, operational project linking,
+and client-library installation are not performed by the initializer today.
+
+## Afrobase platform direction
+
+Afrobase is being designed around integrated infrastructure capabilities
+including:
 
 - Data
-- Authentication & Identity
+- Authentication and Identity
 - Realtime
 - Content
 - Storage
@@ -97,16 +183,23 @@ Afrobase is being designed around integrated platform capabilities including:
 - Events
 - Money
 - African payment rails
-- Security & Fraud Intelligence
+- Security and Fraud Intelligence
 
-Future versions of `create-afrobase` will help developers configure and connect the Afrobase capabilities required by their applications.
+`create-afrobase` is the project bootstrapper. Operational Cloud workflows and
+client libraries are separate parts of the Afrobase developer platform.
 
 ## Requirements
 
 - Node.js 20 or later
 - npm
 
-## Local Development
+## Local development
+
+Install dependencies:
+
+```bash
+npm install
+```
 
 Run the CLI locally:
 
@@ -114,10 +207,10 @@ Run the CLI locally:
 npm start
 ```
 
-Check the version:
+Create a test project:
 
 ```bash
-node ./bin/create-afrobase.js --version
+node ./bin/create-afrobase.js my-test-app
 ```
 
 Display help:
@@ -126,10 +219,22 @@ Display help:
 node ./bin/create-afrobase.js --help
 ```
 
-After running `npm link`, the CLI can also be tested with:
+Check the version:
 
 ```bash
-create-afrobase --version
+node ./bin/create-afrobase.js --version
+```
+
+Run the package test:
+
+```bash
+npm test
+```
+
+Inspect the package before publishing:
+
+```bash
+npm pack --dry-run
 ```
 
 ## Package

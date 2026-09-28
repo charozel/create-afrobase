@@ -3,6 +3,10 @@ import path from "node:path";
 
 const AFROBASE_DIRECTORY = "afrobase";
 
+/* ============================================================
+   GENERATED .gitignore
+============================================================ */
+
 const GITIGNORE_CONTENT = `# Dependencies
 node_modules/
 
@@ -24,22 +28,82 @@ build/
 Thumbs.db
 `;
 
-const README_CONTENT = `# Afrobase
+/* ============================================================
+   GENERATED ENVIRONMENT TEMPLATE
+============================================================ */
 
-This directory contains project-level Afrobase configuration and resources.
+const ENV_EXAMPLE_CONTENT = `# Afrobase
+#
+# Credentials are issued when a project is connected to Afrobase Cloud.
+# Do not commit real secret keys.
 
-It is managed as part of your application and may evolve as Afrobase services
-such as Data, Auth, Functions, Money, and Security are configured.
-
-Do not store secrets in this directory.
+AFROBASE_PUBLISHABLE_KEY=
+AFROBASE_SECRET_KEY=
 `;
 
-export function scaffoldProject(projectPath) {
-  const afrobaseDirectory = path.join(
-    projectPath,
-    AFROBASE_DIRECTORY,
-  );
+/* ============================================================
+   GENERATED AFROBASE README
+============================================================ */
 
+const README_CONTENT = `# Afrobase
+
+This application is configured to use Afrobase.
+
+## Project configuration
+
+The project's Afrobase configuration is stored in:
+
+\`\`\`text
+../afrobase.json
+\`\`\`
+
+The configuration identifies the local Afrobase project and may later include
+its Afrobase Cloud project identity after the project is linked.
+
+## This directory
+
+The \`afrobase/\` directory is reserved for project-level Afrobase resources
+and configuration as services are enabled.
+
+Afrobase services may include:
+
+- Data
+- Auth
+- Functions
+- Money
+- Security
+
+## Secrets
+
+Do not store API keys, secret keys, access tokens, or other credentials in this
+directory or in \`afrobase.json\`.
+
+Credentials should be supplied through the application's environment.
+
+## Connecting to Afrobase
+
+A newly created project starts as a local Afrobase project.
+
+Applications connect to Afrobase using two separate pieces of information:
+
+1. Project identity is stored in \`../afrobase.json\`.
+2. Runtime credentials are supplied through the application's environment.
+
+This keeps project configuration separate from secrets and allows Afrobase to
+work across different application frameworks and runtimes.
+
+Cloud project creation, authentication, and linking are separate operations and
+are not performed automatically by \`create-afrobase\`.
+
+Once Afrobase Cloud tooling and client libraries are installed, they can use
+this project configuration and environment contract to establish the connection.
+`;
+
+/* ============================================================
+   PROJECT SCAFFOLD
+============================================================ */
+
+export function scaffoldProject(projectPath) {
   if (!fs.existsSync(projectPath)) {
     return {
       success: false,
@@ -56,9 +120,19 @@ export function scaffoldProject(projectPath) {
     };
   }
 
+  const afrobaseDirectory = path.join(
+    projectPath,
+    AFROBASE_DIRECTORY,
+  );
+
   const gitignorePath = path.join(
     projectPath,
     ".gitignore",
+  );
+
+  const envExamplePath = path.join(
+    projectPath,
+    ".env.example",
   );
 
   const readmePath = path.join(
@@ -66,6 +140,9 @@ export function scaffoldProject(projectPath) {
     "README.md",
   );
 
+  /* ============================================================
+     COLLISION GUARDS
+  ============================================================ */
 
   if (fs.existsSync(afrobaseDirectory)) {
     return {
@@ -83,6 +160,17 @@ export function scaffoldProject(projectPath) {
     };
   }
 
+  if (fs.existsSync(envExamplePath)) {
+    return {
+      success: false,
+      reason: "ENV_EXAMPLE_EXISTS",
+      message: 'A ".env.example" file already exists.',
+    };
+  }
+
+  /* ============================================================
+     CREATE SCAFFOLD
+  ============================================================ */
 
   fs.mkdirSync(afrobaseDirectory, {
     recursive: false,
@@ -95,16 +183,23 @@ export function scaffoldProject(projectPath) {
   );
 
   fs.writeFileSync(
+    envExamplePath,
+    ENV_EXAMPLE_CONTENT,
+    "utf8",
+  );
+
+  fs.writeFileSync(
     readmePath,
     README_CONTENT,
     "utf8",
   );
 
-   return {
+  return {
     success: true,
     reason: "PROJECT_SCAFFOLDED",
     afrobaseDirectory,
     gitignorePath,
+    envExamplePath,
     readmePath,
   };
 }

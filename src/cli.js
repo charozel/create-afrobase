@@ -9,6 +9,10 @@ const VERSION = "0.0.1";
 
 const args = process.argv.slice(2);
 
+/* ============================================================
+   BRAND
+============================================================ */
+
 function printLogo() {
   info(`
     _     __          __
@@ -20,6 +24,10 @@ function printLogo() {
 African digital infrastructure.
 `);
 }
+
+/* ============================================================
+   HELP
+============================================================ */
 
 function printHelp() {
   printLogo();
@@ -38,6 +46,10 @@ Examples:
 `);
 }
 
+/* ============================================================
+   OPTIONS
+============================================================ */
+
 if (args.includes("--version") || args.includes("-v")) {
   info(VERSION);
   process.exit(0);
@@ -48,7 +60,13 @@ if (args.includes("--help") || args.includes("-h")) {
   process.exit(0);
 }
 
-const projectName = args.find((arg) => !arg.startsWith("-"));
+/* ============================================================
+   PROJECT NAME
+============================================================ */
+
+const projectName = args.find(
+  (arg) => !arg.startsWith("-"),
+);
 
 printLogo();
 
@@ -81,6 +99,10 @@ info("");
 success("Project name is valid.");
 info("");
 
+/* ============================================================
+   PROJECT DIRECTORY
+============================================================ */
+
 const result = createProjectDirectory(projectName);
 
 if (!result.success) {
@@ -99,6 +121,10 @@ if (result.created) {
 detail(result.projectPath);
 info("");
 
+/* ============================================================
+   PROJECT METADATA
+============================================================ */
+
 const metadataResult = createProjectMetadata(
   result.projectPath,
   projectName,
@@ -108,7 +134,13 @@ success("Created Afrobase project metadata:");
 detail(metadataResult.metadataPath);
 info("");
 
-const scaffoldResult = scaffoldProject(result.projectPath);
+/* ============================================================
+   PROJECT SCAFFOLD
+============================================================ */
+
+const scaffoldResult = scaffoldProject(
+  result.projectPath,
+);
 
 if (!scaffoldResult.success) {
   error(scaffoldResult.message);
@@ -120,14 +152,21 @@ if (!scaffoldResult.success) {
 success("Created Afrobase project scaffold:");
 detail(scaffoldResult.afrobaseDirectory);
 detail(scaffoldResult.gitignorePath);
+detail(scaffoldResult.envExamplePath);
 info("");
+
+/* ============================================================
+   CONFIGURATION VERIFICATION
+============================================================ */
 
 const configResult = readProjectConfig(
   result.projectPath,
 );
 
 if (!configResult.success) {
-  error("Afrobase project configuration could not be verified.");
+  error(
+    "Afrobase project configuration could not be verified.",
+  );
   detail(configResult.message);
   info("");
 
@@ -138,5 +177,33 @@ success("Verified Afrobase project configuration.");
 detail(configResult.configPath);
 info("");
 
+/* ============================================================
+   COMPLETION
+============================================================ */
+
 success("Afrobase project is ready.");
+info("");
+
+info("Created:");
+detail("afrobase.json");
+detail("afrobase/");
+detail(".env.example");
+detail(".gitignore");
+info("");
+
+info("Next steps:");
+info("");
+detail(`cd ${projectName}`);
+info("");
+detail(
+  "Review afrobase/README.md for project configuration guidance.",
+);
+detail(
+  "Add Afrobase credentials to your application environment when they are issued.",
+);
+info("");
+
+info(
+  "Cloud authentication and project linking are separate Afrobase operations.",
+);
 info("");
