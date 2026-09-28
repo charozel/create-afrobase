@@ -150,7 +150,6 @@ export function readProjectConfig(projectPath) {
 /* ============================================================
    PROJECT CONFIG WRITER
 ============================================================ */
-
 export function writeProjectConfig(
   projectPath,
   config,
@@ -170,13 +169,38 @@ export function writeProjectConfig(
     CONFIG_FILE_NAME,
   );
 
+  const tempConfigPath = path.join(
+    projectPath,
+    `.${CONFIG_FILE_NAME}.${process.pid}.tmp`,
+  );
+
+let tempCreated = false;
   try {
     fs.writeFileSync(
-      configPath,
+      tempConfigPath,
       `${JSON.stringify(config, null, 2)}\n`,
-      "utf8",
+      {
+        encoding: "utf8",
+        flag: "wx",
+      },
+    );
+tempCreated = true;
+    fs.renameSync(
+      tempConfigPath,
+      configPath,
     );
   } catch {
+    try {
+     if (
+  tempCreated &&
+  fs.existsSync(tempConfigPath)
+) {
+  fs.unlinkSync(tempConfigPath);
+}
+    } catch {
+      // Preserve the original write failure.
+    }
+
     return {
       success: false,
       reason: "CONFIG_WRITE_ERROR",

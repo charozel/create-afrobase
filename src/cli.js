@@ -4,6 +4,10 @@ import { createProjectMetadata } from "./project-metadata.js";
 import { readProjectConfig } from "./project-config.js";
 import { scaffoldProject } from "./scaffold-project.js";
 import { detail, error, info, success } from "./logger.js";
+import { preflightProject } from "./project-preflight.js";
+import { rollbackProject } from "./project-rollback.js";
+
+
 
 const VERSION = "0.0.1";
 
@@ -121,6 +125,27 @@ if (result.created) {
 detail(result.projectPath);
 info("");
 
+const createdArtifacts = [];
+
+/* ============================================================
+   PROJECT PREFLIGHT
+============================================================ */
+
+const preflightResult = preflightProject(
+  result.projectPath,
+);
+
+if (!preflightResult.success) {
+  error("Afrobase project preflight failed.");
+  detail(preflightResult.message);
+  info("");
+
+  process.exit(1);
+}
+
+success("Project preflight passed.");
+info("");
+
 /* ============================================================
    PROJECT METADATA
 ============================================================ */
@@ -128,6 +153,28 @@ info("");
 const metadataResult = createProjectMetadata(
   result.projectPath,
   projectName,
+);
+
+if (!metadataResult.success) {
+  error(metadataResult.message);
+
+  const rollbackResult = rollbackProject({
+    projectPath: result.projectPath,
+    directoryCreated: result.created,
+    createdArtifacts,
+  });
+
+  if (rollbackResult.directoryRemoved) {
+    detail("Rolled back the created project directory.");
+  }
+
+  info("");
+
+  process.exit(1);
+}
+
+createdArtifacts.push(
+  metadataResult.metadataPath,
 );
 
 success("Created Afrobase project metadata:");
@@ -144,10 +191,32 @@ const scaffoldResult = scaffoldProject(
 
 if (!scaffoldResult.success) {
   error(scaffoldResult.message);
+
+  const rollbackResult = rollbackProject({
+    projectPath: result.projectPath,
+    directoryCreated: result.created,
+    createdArtifacts,
+  });
+
+  if (rollbackResult.removedArtifacts.length > 0) {
+    detail("Rolled back created Afrobase artifacts.");
+  }
+
+  if (rollbackResult.directoryRemoved) {
+    detail("Rolled back the created project directory.");
+  }
+
   info("");
 
   process.exit(1);
 }
+
+createdArtifacts.push(
+  scaffoldResult.afrobaseDirectory,
+  scaffoldResult.gitignorePath,
+  scaffoldResult.envExamplePath,
+  scaffoldResult.readmePath,
+);
 
 success("Created Afrobase project scaffold:");
 detail(scaffoldResult.afrobaseDirectory);
@@ -168,6 +237,21 @@ if (!configResult.success) {
     "Afrobase project configuration could not be verified.",
   );
   detail(configResult.message);
+
+  const rollbackResult = rollbackProject({
+    projectPath: result.projectPath,
+    directoryCreated: result.created,
+    createdArtifacts,
+  });
+
+  if (rollbackResult.removedArtifacts.length > 0) {
+    detail("Rolled back created Afrobase artifacts.");
+  }
+
+  if (rollbackResult.directoryRemoved) {
+    detail("Rolled back the created project directory.");
+  }
+
   info("");
 
   process.exit(1);

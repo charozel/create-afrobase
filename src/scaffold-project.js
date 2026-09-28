@@ -172,27 +172,85 @@ export function scaffoldProject(projectPath) {
      CREATE SCAFFOLD
   ============================================================ */
 
-  fs.mkdirSync(afrobaseDirectory, {
-    recursive: false,
-  });
+  const createdArtifacts = [];
 
-  fs.writeFileSync(
-    gitignorePath,
-    GITIGNORE_CONTENT,
-    "utf8",
-  );
+  try {
+    fs.mkdirSync(afrobaseDirectory, {
+      recursive: false,
+    });
 
-  fs.writeFileSync(
-    envExamplePath,
-    ENV_EXAMPLE_CONTENT,
-    "utf8",
-  );
+    createdArtifacts.push(
+      afrobaseDirectory,
+    );
 
-  fs.writeFileSync(
-    readmePath,
-    README_CONTENT,
-    "utf8",
-  );
+    fs.writeFileSync(
+      gitignorePath,
+      GITIGNORE_CONTENT,
+      {
+        encoding: "utf8",
+        flag: "wx",
+      },
+    );
+
+    createdArtifacts.push(
+      gitignorePath,
+    );
+
+
+    fs.writeFileSync(
+      envExamplePath,
+      ENV_EXAMPLE_CONTENT,
+      {
+        encoding: "utf8",
+        flag: "wx",
+      },
+    );
+
+    createdArtifacts.push(
+      envExamplePath,
+    );
+
+    fs.writeFileSync(
+      readmePath,
+      README_CONTENT,
+      {
+        encoding: "utf8",
+        flag: "wx",
+      },
+    );
+
+    createdArtifacts.push(
+      readmePath,
+    );
+  } catch (cause) {
+    for (
+      const artifactPath of [...createdArtifacts].reverse()
+    ) {
+      try {
+        if (!fs.existsSync(artifactPath)) {
+          continue;
+        }
+
+        const stat = fs.statSync(artifactPath);
+
+       if (stat.isDirectory()) {
+  fs.rmdirSync(artifactPath);
+} else {
+  fs.unlinkSync(artifactPath);
+}
+      } catch {
+        // Preserve anything that cannot be safely removed.
+      }
+    }
+
+    return {
+      success: false,
+      reason: "SCAFFOLD_WRITE_ERROR",
+      message:
+        "Afrobase project scaffold could not be created.",
+      cause,
+    };
+  }
 
   return {
     success: true,
