@@ -3,11 +3,18 @@ import { createProjectDirectory } from "./create-project.js";
 import { createProjectMetadata } from "./project-metadata.js";
 import { readProjectConfig } from "./project-config.js";
 import { scaffoldProject } from "./scaffold-project.js";
-import { detail, error, info, success } from "./logger.js";
+import {
+  detail,
+  error,
+  heading,
+  info,
+  label,
+  spacer,
+  step,
+  success,
+} from "./logger.js";
 import { preflightProject } from "./project-preflight.js";
 import { rollbackProject } from "./project-rollback.js";
-
-
 
 const VERSION = "0.0.1";
 
@@ -36,18 +43,43 @@ African digital infrastructure.
 function printHelp() {
   printLogo();
 
-  info(`Usage:
-  create-afrobase [project-name] [options]
+  heading("create-afrobase");
+  spacer();
 
-Options:
-  -h, --help       Show CLI help
-  -v, --version    Show CLI version
+  info("Usage:");
+  detail("create-afrobase [project-name] [options]");
+  spacer();
 
-Examples:
-  npx create-afrobase@latest
-  npx create-afrobase@latest my-app
-  npm create afrobase@latest
-`);
+  info("Options:");
+  detail("-h, --help       Show CLI help");
+  detail("-v, --version    Show CLI version");
+  spacer();
+
+  info("Examples:");
+  detail("npx create-afrobase@latest");
+  detail("npx create-afrobase@latest my-app");
+  detail("npm create afrobase@latest");
+  spacer();
+}
+
+/* ============================================================
+   ROLLBACK PRESENTATION
+============================================================ */
+
+function reportRollback(rollbackResult) {
+  if (rollbackResult.removedArtifacts.length > 0) {
+    detail("Rolled back created Afrobase artifacts.");
+  }
+
+  if (rollbackResult.directoryRemoved) {
+    detail("Rolled back the created project directory.");
+  }
+
+  if (rollbackResult.preservedArtifacts.length > 0) {
+    detail(
+      "Preserved files that could not be safely removed.",
+    );
+  }
 }
 
 /* ============================================================
@@ -75,61 +107,79 @@ const projectName = args.find(
 printLogo();
 
 if (!projectName) {
-  info("Welcome to Afrobase.");
-  info("");
-  info("To create a project, provide a project name:");
-  info("");
+  heading("create-afrobase");
+  spacer();
+
+  info("Create a new project powered by Afrobase.");
+  spacer();
+
+  info("Usage:");
   detail("npx create-afrobase@latest my-app");
-  info("");
+  spacer();
+
+  info("Need help?");
+  detail("create-afrobase --help");
+  spacer();
 
   process.exit(0);
 }
+
+heading("create-afrobase");
+spacer();
+
+label("Project", projectName);
+spacer();
+
+step("Validating project");
 
 const validation = validateProjectName(projectName);
 
 if (!validation.valid) {
   error(`Invalid project name: "${projectName}"`);
   detail(validation.message);
-  info("");
+  spacer();
+
   info("Example:");
   detail("npx create-afrobase@latest my-app");
-  info("");
+  spacer();
 
   process.exit(1);
 }
 
-info(`Project: ${projectName}`);
-info("");
-success("Project name is valid.");
-info("");
+success("Project name validated.");
+spacer();
 
 /* ============================================================
    PROJECT DIRECTORY
 ============================================================ */
 
+step("Preparing workspace");
+
 const result = createProjectDirectory(projectName);
 
 if (!result.success) {
   error(result.message);
-  info("");
+  spacer();
 
   process.exit(1);
 }
 
 if (result.created) {
-  success(`Created project directory: ${projectName}`);
+  success("Project directory created.");
 } else {
-  success(`Using existing empty directory: ${projectName}`);
+  success("Using existing empty project directory.");
 }
 
 detail(result.projectPath);
-info("");
+spacer();
 
 const createdArtifacts = [];
 
 /* ============================================================
    PROJECT PREFLIGHT
 ============================================================ */
+
+step("Running project preflight");
 
 const preflightResult = preflightProject(
   result.projectPath,
@@ -138,17 +188,19 @@ const preflightResult = preflightProject(
 if (!preflightResult.success) {
   error("Afrobase project preflight failed.");
   detail(preflightResult.message);
-  info("");
+  spacer();
 
   process.exit(1);
 }
 
 success("Project preflight passed.");
-info("");
+spacer();
 
 /* ============================================================
    PROJECT METADATA
 ============================================================ */
+
+step("Creating project configuration");
 
 const metadataResult = createProjectMetadata(
   result.projectPath,
@@ -164,11 +216,8 @@ if (!metadataResult.success) {
     createdArtifacts,
   });
 
-  if (rollbackResult.directoryRemoved) {
-    detail("Rolled back the created project directory.");
-  }
-
-  info("");
+  reportRollback(rollbackResult);
+  spacer();
 
   process.exit(1);
 }
@@ -177,13 +226,15 @@ createdArtifacts.push(
   metadataResult.metadataPath,
 );
 
-success("Created Afrobase project metadata:");
+success("Project configuration created.");
 detail(metadataResult.metadataPath);
-info("");
+spacer();
 
 /* ============================================================
    PROJECT SCAFFOLD
 ============================================================ */
+
+step("Initializing Afrobase resources");
 
 const scaffoldResult = scaffoldProject(
   result.projectPath,
@@ -198,15 +249,8 @@ if (!scaffoldResult.success) {
     createdArtifacts,
   });
 
-  if (rollbackResult.removedArtifacts.length > 0) {
-    detail("Rolled back created Afrobase artifacts.");
-  }
-
-  if (rollbackResult.directoryRemoved) {
-    detail("Rolled back the created project directory.");
-  }
-
-  info("");
+  reportRollback(rollbackResult);
+  spacer();
 
   process.exit(1);
 }
@@ -218,15 +262,17 @@ createdArtifacts.push(
   scaffoldResult.readmePath,
 );
 
-success("Created Afrobase project scaffold:");
+success("Afrobase resources initialized.");
 detail(scaffoldResult.afrobaseDirectory);
 detail(scaffoldResult.gitignorePath);
 detail(scaffoldResult.envExamplePath);
-info("");
+spacer();
 
 /* ============================================================
    CONFIGURATION VERIFICATION
 ============================================================ */
+
+step("Verifying project");
 
 const configResult = readProjectConfig(
   result.projectPath,
@@ -244,50 +290,48 @@ if (!configResult.success) {
     createdArtifacts,
   });
 
-  if (rollbackResult.removedArtifacts.length > 0) {
-    detail("Rolled back created Afrobase artifacts.");
-  }
-
-  if (rollbackResult.directoryRemoved) {
-    detail("Rolled back the created project directory.");
-  }
-
-  info("");
+  reportRollback(rollbackResult);
+  spacer();
 
   process.exit(1);
 }
 
-success("Verified Afrobase project configuration.");
+success("Project configuration verified.");
 detail(configResult.configPath);
-info("");
+spacer();
 
 /* ============================================================
    COMPLETION
 ============================================================ */
 
-success("Afrobase project is ready.");
-info("");
+heading("Afrobase project ready");
+spacer();
 
-info("Created:");
+label("Project", projectName);
+label("Location", result.projectPath);
+spacer();
+
+info("Created");
 detail("afrobase.json");
 detail("afrobase/");
 detail(".env.example");
 detail(".gitignore");
-info("");
+spacer();
 
-info("Next steps:");
-info("");
+info("Next");
 detail(`cd ${projectName}`);
-info("");
+spacer();
+
+info("Continue setup");
 detail(
   "Review afrobase/README.md for project configuration guidance.",
 );
 detail(
   "Add Afrobase credentials to your application environment when they are issued.",
 );
-info("");
+spacer();
 
 info(
   "Cloud authentication and project linking are separate Afrobase operations.",
 );
-info("");
+spacer();
