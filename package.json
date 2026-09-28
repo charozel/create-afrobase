@@ -17,6 +17,7 @@
   "keywords": [
     "afrobase",
     "africa",
+    "african",
     "backend",
     "baas",
     "developer-tools",
@@ -28,5 +29,13 @@
   "license": "MIT",
   "engines": {
     "node": ">=20"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/charozel/create-afrobase.git"
+  },
+  "bugs": {
+    "url": "https://github/charozel/create-afrobase/issues"
+  },
+  "homepage": "https://github.com/charozel/create-afrobase#readme"
 }
