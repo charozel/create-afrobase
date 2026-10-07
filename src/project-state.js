@@ -26,6 +26,22 @@ export function getProjectState(
   const environmentStatus =
     getEnvironmentStatus(environment);
 
+  const sdk = {
+    package:
+      configResult.config.sdk?.package ??
+      null,
+
+    project:
+      environmentStatus.hasProject
+        ? environment.AFROBASE_PROJECT.trim()
+        : identity.projectId ?? null,
+
+    apiUrl:
+      environmentStatus.hasApiUrl
+        ? environment.AFROBASE_API_URL.trim()
+        : null,
+  };
+
   return {
     success: true,
     reason: "PROJECT_STATE_LOADED",
@@ -34,5 +50,6 @@ export function getProjectState(
     config: configResult.config,
     identity,
     environment: environmentStatus,
+    sdk,
   };
 }

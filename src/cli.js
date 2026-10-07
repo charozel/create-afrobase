@@ -324,14 +324,17 @@ spacer();
 
 info("Continue setup");
 detail(
-  "Review afrobase/README.md for project configuration guidance.",
+  "Review afrobase/README.md for SDK and project configuration guidance.",
 );
 detail(
-  "Add Afrobase credentials to your application environment when they are issued.",
+  "Install @afrobase/sdk when you are ready to connect your application.",
+);
+detail(
+  "Configure AFROBASE_PROJECT after this project is linked to Afrobase.",
 );
 spacer();
 
 info(
-  "Cloud authentication and project linking are separate Afrobase operations.",
+  "Cloud authentication and project linking are not performed automatically.",
 );
 spacer();
