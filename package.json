@@ -12,7 +12,8 @@
   ],
   "scripts": {
     "start": "node ./bin/create-afrobase.js",
-    "test": "node ./bin/create-afrobase.js --help"
+    "test": "node --test",
+    "test:cli": "node ./bin/create-afrobase.js --help"
   },
   "keywords": [
     "afrobase",
@@ -35,7 +36,7 @@
     "url": "git+https://github.com/charozel/create-afrobase.git"
   },
   "bugs": {
-    "url": "https://github/charozel/create-afrobase/issues"
+    "url": "https://github.com/charozel/create-afrobase/issues"
   },
   "homepage": "https://github.com/charozel/create-afrobase#readme"
 }
