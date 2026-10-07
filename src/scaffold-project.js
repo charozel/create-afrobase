@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 
 const AFROBASE_DIRECTORY = "afrobase";
@@ -34,11 +34,18 @@ Thumbs.db
 
 const ENV_EXAMPLE_CONTENT = `# Afrobase
 #
-# Credentials are issued when a project is connected to Afrobase Cloud.
-# Do not commit real secret keys.
+# Project identity and API configuration used by Afrobase clients.
+#
+# AFROBASE_PROJECT identifies the Afrobase project/tenant.
+# It is project context â€” not an authentication credential.
+#
+# AFROBASE_API_URL may be overridden for development, preview,
+# regional, self-hosted, or future branded Afrobase endpoints.
+#
+# Never commit real secrets or session tokens.
 
-AFROBASE_PUBLISHABLE_KEY=
-AFROBASE_SECRET_KEY=
+AFROBASE_PROJECT=
+AFROBASE_API_URL=https://impressive-clam-161.convex.site
 `;
 
 /* ============================================================
@@ -47,18 +54,78 @@ AFROBASE_SECRET_KEY=
 
 const README_CONTENT = `# Afrobase
 
-This application is configured to use Afrobase.
+This application is prepared to use Afrobase.
 
 ## Project configuration
 
-The project's Afrobase configuration is stored in:
+The project's local Afrobase manifest is stored in:
 
 \`\`\`text
 ../afrobase.json
 \`\`\`
 
-The configuration identifies the local Afrobase project and may later include
-its Afrobase Cloud project identity after the project is linked.
+It contains non-secret project metadata and identifies this application as an
+Afrobase project.
+
+## JavaScript / TypeScript SDK
+
+Afrobase applications can use the official SDK:
+
+\`\`\`bash
+npm install @afrobase/sdk
+\`\`\`
+
+Create a client with your Afrobase project identity:
+
+\`\`\`ts
+import { Afrobase } from "@afrobase/sdk";
+
+const afrobase = new Afrobase({
+  project: process.env.AFROBASE_PROJECT!,
+  baseUrl: process.env.AFROBASE_API_URL,
+});
+\`\`\`
+
+The SDK supports JavaScript and TypeScript and uses the Afrobase public HTTP
+API.
+
+## Environment
+
+Copy the generated environment template when configuring your application:
+
+\`\`\`text
+../.env.example
+\`\`\`
+
+The current environment contract is:
+
+\`\`\`text
+AFROBASE_PROJECT=
+AFROBASE_API_URL=https://impressive-clam-161.convex.site
+\`\`\`
+
+\`AFROBASE_PROJECT\` identifies the Afrobase project/tenant. It is routing
+context and is not an authentication credential.
+
+\`AFROBASE_API_URL\` controls the public API origin. The SDK also has a default
+API origin, so applications may choose whether to configure this explicitly.
+
+The current URL is early-release infrastructure. A future Afrobase SDK release
+may use the branded \`https://api.afrobase.dev\` endpoint once that endpoint is
+configured and verified.
+
+## Auth
+
+Afrobase Auth V1 currently supports:
+
+- Sign in
+- Session lookup
+- Sign out
+
+Authentication sessions are managed by the Afrobase SDK after sign-in.
+
+Do not store session tokens, API secrets, access tokens, or other credentials
+inside \`afrobase.json\` or the \`afrobase/\` directory.
 
 ## This directory
 
@@ -73,30 +140,16 @@ Afrobase services may include:
 - Money
 - Security
 
-## Secrets
+## Cloud linking
 
-Do not store API keys, secret keys, access tokens, or other credentials in this
-directory or in \`afrobase.json\`.
+A newly created project begins with local Afrobase configuration.
 
-Credentials should be supplied through the application's environment.
+Cloud project creation, developer authentication, and project linking remain
+separate Afrobase operations and are not automatically performed by
+\`create-afrobase\`.
 
-## Connecting to Afrobase
-
-A newly created project starts as a local Afrobase project.
-
-Applications connect to Afrobase using two separate pieces of information:
-
-1. Project identity is stored in \`../afrobase.json\`.
-2. Runtime credentials are supplied through the application's environment.
-
-This keeps project configuration separate from secrets and allows Afrobase to
-work across different application frameworks and runtimes.
-
-Cloud project creation, authentication, and linking are separate operations and
-are not performed automatically by \`create-afrobase\`.
-
-Once Afrobase Cloud tooling and client libraries are installed, they can use
-this project configuration and environment contract to establish the connection.
+Once a local project has been linked to an Afrobase project, its project
+identity can be supplied through \`AFROBASE_PROJECT\` and used by the SDK.
 `;
 
 /* ============================================================
@@ -196,7 +249,6 @@ export function scaffoldProject(projectPath) {
       gitignorePath,
     );
 
-
     fs.writeFileSync(
       envExamplePath,
       ENV_EXAMPLE_CONTENT,
@@ -233,11 +285,11 @@ export function scaffoldProject(projectPath) {
 
         const stat = fs.statSync(artifactPath);
 
-       if (stat.isDirectory()) {
-  fs.rmdirSync(artifactPath);
-} else {
-  fs.unlinkSync(artifactPath);
-}
+        if (stat.isDirectory()) {
+          fs.rmdirSync(artifactPath);
+        } else {
+          fs.unlinkSync(artifactPath);
+        }
       } catch {
         // Preserve anything that cannot be safely removed.
       }

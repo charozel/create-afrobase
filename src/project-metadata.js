@@ -2,7 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 const METADATA_FILE = "afrobase.json";
+const METADATA_VERSION = 1;
 
+/**
+ * Creates the local Afrobase project manifest.
+ *
+ * afrobase.json contains non-secret project metadata only.
+ * Runtime credentials must never be written here.
+ */
 export function createProjectMetadata(
   projectPath,
   projectName,
@@ -15,7 +22,10 @@ export function createProjectMetadata(
   const metadata = {
     name: projectName,
     platform: "afrobase",
-    version: 1,
+    version: METADATA_VERSION,
+    sdk: {
+      package: "@afrobase/sdk",
+    },
   };
 
   try {
