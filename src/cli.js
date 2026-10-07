@@ -260,10 +260,12 @@ createdArtifacts.push(
   scaffoldResult.gitignorePath,
   scaffoldResult.envExamplePath,
   scaffoldResult.readmePath,
+  scaffoldResult.clientPath,
 );
 
 success("Afrobase resources initialized.");
 detail(scaffoldResult.afrobaseDirectory);
+detail(scaffoldResult.clientPath);
 detail(scaffoldResult.gitignorePath);
 detail(scaffoldResult.envExamplePath);
 spacer();
@@ -314,6 +316,8 @@ spacer();
 info("Created");
 detail("afrobase.json");
 detail("afrobase/");
+detail("afrobase/README.md");
+detail("afrobase/client.ts");
 detail(".env.example");
 detail(".gitignore");
 spacer();
@@ -322,15 +326,22 @@ info("Next");
 detail(`cd ${projectName}`);
 spacer();
 
-info("Continue setup");
+info("Install the Afrobase SDK");
+detail("npm install @afrobase/sdk");
+spacer();
+
+info("Configure your project");
 detail(
-  "Review afrobase/README.md for SDK and project configuration guidance.",
+  "Set AFROBASE_PROJECT after this project is linked to Afrobase.",
 );
 detail(
-  "Install @afrobase/sdk when you are ready to connect your application.",
+  "AFROBASE_API_URL may be used to override the default API origin.",
 );
+spacer();
+
+info("Use Afrobase");
 detail(
-  "Configure AFROBASE_PROJECT after this project is linked to Afrobase.",
+  "Import the generated client from afrobase/client.ts.",
 );
 spacer();
 

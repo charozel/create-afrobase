@@ -2,6 +2,8 @@
 import path from "node:path";
 
 const AFROBASE_DIRECTORY = "afrobase";
+const README_FILE = "README.md";
+const CLIENT_FILE = "client.ts";
 
 /* ============================================================
    GENERATED .gitignore
@@ -37,7 +39,7 @@ const ENV_EXAMPLE_CONTENT = `# Afrobase
 # Project identity and API configuration used by Afrobase clients.
 #
 # AFROBASE_PROJECT identifies the Afrobase project/tenant.
-# It is project context â€” not an authentication credential.
+# It is project context, not an authentication credential.
 #
 # AFROBASE_API_URL may be overridden for development, preview,
 # regional, self-hosted, or future branded Afrobase endpoints.
@@ -46,6 +48,27 @@ const ENV_EXAMPLE_CONTENT = `# Afrobase
 
 AFROBASE_PROJECT=
 AFROBASE_API_URL=https://impressive-clam-161.convex.site
+`;
+
+/* ============================================================
+   GENERATED SDK CLIENT
+============================================================ */
+
+const CLIENT_CONTENT = `import { Afrobase } from "@afrobase/sdk";
+
+const project = process.env.AFROBASE_PROJECT;
+
+if (!project) {
+  throw new Error(
+    "AFROBASE_PROJECT is required to initialize Afrobase.",
+  );
+}
+
+export const afrobase = new Afrobase({
+  project,
+  baseUrl:
+    process.env.AFROBASE_API_URL || undefined,
+});
 `;
 
 /* ============================================================
@@ -69,25 +92,30 @@ Afrobase project.
 
 ## JavaScript / TypeScript SDK
 
-Afrobase applications can use the official SDK:
+Install the official Afrobase SDK:
 
 \`\`\`bash
 npm install @afrobase/sdk
 \`\`\`
 
-Create a client with your Afrobase project identity:
+A ready-to-use SDK client is generated at:
 
-\`\`\`ts
-import { Afrobase } from "@afrobase/sdk";
-
-const afrobase = new Afrobase({
-  project: process.env.AFROBASE_PROJECT!,
-  baseUrl: process.env.AFROBASE_API_URL,
-});
+\`\`\`text
+./client.ts
 \`\`\`
 
-The SDK supports JavaScript and TypeScript and uses the Afrobase public HTTP
-API.
+Import it from your application using the path appropriate for your project:
+
+\`\`\`ts
+import { afrobase } from "./afrobase/client";
+\`\`\`
+
+The generated client reads \`AFROBASE_PROJECT\` and
+\`AFROBASE_API_URL\` from the application environment and initializes the
+official Afrobase SDK.
+
+The SDK supports JavaScript and TypeScript and communicates with the Afrobase
+public HTTP API.
 
 ## Environment
 
@@ -129,8 +157,15 @@ inside \`afrobase.json\` or the \`afrobase/\` directory.
 
 ## This directory
 
-The \`afrobase/\` directory is reserved for project-level Afrobase resources
-and configuration as services are enabled.
+The \`afrobase/\` directory contains project-level Afrobase resources generated
+for this application.
+
+Current generated resources:
+
+- \`README.md\` - Afrobase project and SDK guidance
+- \`client.ts\` - ready-to-use Afrobase SDK client
+
+Additional Afrobase resources may be added here as services are enabled.
 
 Afrobase services may include:
 
@@ -151,6 +186,32 @@ separate Afrobase operations and are not automatically performed by
 Once a local project has been linked to an Afrobase project, its project
 identity can be supplied through \`AFROBASE_PROJECT\` and used by the SDK.
 `;
+
+/* ============================================================
+   SAFE ARTIFACT REMOVAL
+============================================================ */
+
+function removeCreatedArtifacts(createdArtifacts) {
+  for (
+    const artifactPath of [...createdArtifacts].reverse()
+  ) {
+    try {
+      if (!fs.existsSync(artifactPath)) {
+        continue;
+      }
+
+      const stat = fs.statSync(artifactPath);
+
+      if (stat.isDirectory()) {
+        fs.rmdirSync(artifactPath);
+      } else {
+        fs.unlinkSync(artifactPath);
+      }
+    } catch {
+      // Preserve anything that cannot be safely removed.
+    }
+  }
+}
 
 /* ============================================================
    PROJECT SCAFFOLD
@@ -190,7 +251,12 @@ export function scaffoldProject(projectPath) {
 
   const readmePath = path.join(
     afrobaseDirectory,
-    "README.md",
+    README_FILE,
+  );
+
+  const clientPath = path.join(
+    afrobaseDirectory,
+    CLIENT_FILE,
   );
 
   /* ============================================================
@@ -274,26 +340,23 @@ export function scaffoldProject(projectPath) {
     createdArtifacts.push(
       readmePath,
     );
+
+    fs.writeFileSync(
+      clientPath,
+      CLIENT_CONTENT,
+      {
+        encoding: "utf8",
+        flag: "wx",
+      },
+    );
+
+    createdArtifacts.push(
+      clientPath,
+    );
   } catch (cause) {
-    for (
-      const artifactPath of [...createdArtifacts].reverse()
-    ) {
-      try {
-        if (!fs.existsSync(artifactPath)) {
-          continue;
-        }
-
-        const stat = fs.statSync(artifactPath);
-
-        if (stat.isDirectory()) {
-          fs.rmdirSync(artifactPath);
-        } else {
-          fs.unlinkSync(artifactPath);
-        }
-      } catch {
-        // Preserve anything that cannot be safely removed.
-      }
-    }
+    removeCreatedArtifacts(
+      createdArtifacts,
+    );
 
     return {
       success: false,
@@ -311,5 +374,6 @@ export function scaffoldProject(projectPath) {
     gitignorePath,
     envExamplePath,
     readmePath,
+    clientPath,
   };
 }
