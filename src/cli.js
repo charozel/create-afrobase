@@ -1,8 +1,10 @@
+
 import { validateProjectName } from "./project-name.js";
 import { createProjectDirectory } from "./create-project.js";
 import { createProjectMetadata } from "./project-metadata.js";
 import { readProjectConfig } from "./project-config.js";
 import { scaffoldProject } from "./scaffold-project.js";
+
 import {
   detail,
   error,
@@ -13,6 +15,7 @@ import {
   step,
   success,
 } from "./logger.js";
+
 import { preflightProject } from "./project-preflight.js";
 import { rollbackProject } from "./project-rollback.js";
 
@@ -21,8 +24,8 @@ import {
   printCommandsHelp,
   runCliCommand,
 } from "./commands.js";
-const VERSION = "0.0.1";
 
+const VERSION = "0.0.1";
 const args = process.argv.slice(2);
 
 /* ============================================================
@@ -90,284 +93,325 @@ function reportRollback(rollbackResult) {
 }
 
 /* ============================================================
-   OPTIONS
+   PROJECT CREATION PIPELINE
+
+   This function is called only when the input is not
+   a recognized Afrobase Cloud command.
+
+   Returns an exit code instead of terminating Node.js.
 ============================================================ */
 
-if (args.includes("--version") || args.includes("-v")) {
-  info(VERSION);
-  process.exit(0);
-}
+async function runProjectCreation() {
+  /* ============================================================
+     PROJECT NAME
+  ============================================================ */
 
-if (args.includes("--help") || args.includes("-h")) {
-  printHelp();
-  process.exit(0);
-}
-/* ============================================================
-   EXPLICIT COMMAND DISPATCH
-
-   Commands must never enter the project creation pipeline.
-============================================================ */
-
-const firstArgument = args[0];
-
-if (isCliCommand(firstArgument)) {
-  const exitCode = await runCliCommand(
-    firstArgument,
-    args.slice(1),
+  const projectName = args.find(
+    (arg) => !arg.startsWith("-"),
   );
 
-  process.exit(exitCode);
-}
+  printLogo();
 
-/* ============================================================
-   PROJECT NAME
-============================================================ */
+  if (!projectName) {
+    heading("create-afrobase");
+    spacer();
 
-const projectName = args.find(
-  (arg) => !arg.startsWith("-"),
-);
-printLogo();
+    info("Create a new project powered by Afrobase.");
+    spacer();
 
-if (!projectName) {
+    info("Usage:");
+    detail("npx create-afrobase@latest my-app");
+    spacer();
+
+    info("Need help?");
+    detail("create-afrobase --help");
+    spacer();
+
+    return 0;
+  }
+
   heading("create-afrobase");
   spacer();
 
-  info("Create a new project powered by Afrobase.");
+  label("Project", projectName);
   spacer();
 
-  info("Usage:");
-  detail("npx create-afrobase@latest my-app");
+  step("Validating project");
+
+  const validation = validateProjectName(projectName);
+
+  if (!validation.valid) {
+    error(`Invalid project name: "${projectName}"`);
+    detail(validation.message);
+    spacer();
+
+    info("Example:");
+    detail("npx create-afrobase@latest my-app");
+    spacer();
+
+    return 1;
+  }
+
+  success("Project name validated.");
   spacer();
 
-  info("Need help?");
-  detail("create-afrobase --help");
+  /* ============================================================
+     PROJECT DIRECTORY
+  ============================================================ */
+
+  step("Preparing workspace");
+
+  const result = createProjectDirectory(projectName);
+
+  if (!result.success) {
+    error(result.message);
+    spacer();
+
+    return 1;
+  }
+
+  if (result.created) {
+    success("Project directory created.");
+  } else {
+    success("Using existing empty project directory.");
+  }
+
+  detail(result.projectPath);
   spacer();
 
-  process.exit(0);
-}
+  const createdArtifacts = [];
 
-heading("create-afrobase");
-spacer();
+  /* ============================================================
+     PROJECT PREFLIGHT
+  ============================================================ */
 
-label("Project", projectName);
-spacer();
+  step("Running project preflight");
 
-step("Validating project");
-
-const validation = validateProjectName(projectName);
-
-if (!validation.valid) {
-  error(`Invalid project name: "${projectName}"`);
-  detail(validation.message);
-  spacer();
-
-  info("Example:");
-  detail("npx create-afrobase@latest my-app");
-  spacer();
-
-  process.exit(1);
-}
-
-success("Project name validated.");
-spacer();
-
-/* ============================================================
-   PROJECT DIRECTORY
-============================================================ */
-
-step("Preparing workspace");
-
-const result = createProjectDirectory(projectName);
-
-if (!result.success) {
-  error(result.message);
-  spacer();
-
-  process.exit(1);
-}
-
-if (result.created) {
-  success("Project directory created.");
-} else {
-  success("Using existing empty project directory.");
-}
-
-detail(result.projectPath);
-spacer();
-
-const createdArtifacts = [];
-
-/* ============================================================
-   PROJECT PREFLIGHT
-============================================================ */
-
-step("Running project preflight");
-
-const preflightResult = preflightProject(
-  result.projectPath,
-);
-
-if (!preflightResult.success) {
-  error("Afrobase project preflight failed.");
-  detail(preflightResult.message);
-  spacer();
-
-  process.exit(1);
-}
-
-success("Project preflight passed.");
-spacer();
-
-/* ============================================================
-   PROJECT METADATA
-============================================================ */
-
-step("Creating project configuration");
-
-const metadataResult = createProjectMetadata(
-  result.projectPath,
-  projectName,
-);
-
-if (!metadataResult.success) {
-  error(metadataResult.message);
-
-  const rollbackResult = rollbackProject({
-    projectPath: result.projectPath,
-    directoryCreated: result.created,
-    createdArtifacts,
-  });
-
-  reportRollback(rollbackResult);
-  spacer();
-
-  process.exit(1);
-}
-
-createdArtifacts.push(
-  metadataResult.metadataPath,
-);
-
-success("Project configuration created.");
-detail(metadataResult.metadataPath);
-spacer();
-
-/* ============================================================
-   PROJECT SCAFFOLD
-============================================================ */
-
-step("Initializing Afrobase resources");
-
-const scaffoldResult = scaffoldProject(
-  result.projectPath,
-);
-
-if (!scaffoldResult.success) {
-  error(scaffoldResult.message);
-
-  const rollbackResult = rollbackProject({
-    projectPath: result.projectPath,
-    directoryCreated: result.created,
-    createdArtifacts,
-  });
-
-  reportRollback(rollbackResult);
-  spacer();
-
-  process.exit(1);
-}
-
-createdArtifacts.push(
-  scaffoldResult.afrobaseDirectory,
-  scaffoldResult.gitignorePath,
-  scaffoldResult.envExamplePath,
-  scaffoldResult.readmePath,
-  scaffoldResult.clientPath,
-);
-
-success("Afrobase resources initialized.");
-detail(scaffoldResult.afrobaseDirectory);
-detail(scaffoldResult.clientPath);
-detail(scaffoldResult.gitignorePath);
-detail(scaffoldResult.envExamplePath);
-spacer();
-
-/* ============================================================
-   CONFIGURATION VERIFICATION
-============================================================ */
-
-step("Verifying project");
-
-const configResult = readProjectConfig(
-  result.projectPath,
-);
-
-if (!configResult.success) {
-  error(
-    "Afrobase project configuration could not be verified.",
+  const preflightResult = preflightProject(
+    result.projectPath,
   );
-  detail(configResult.message);
 
-  const rollbackResult = rollbackProject({
-    projectPath: result.projectPath,
-    directoryCreated: result.created,
-    createdArtifacts,
-  });
+  if (!preflightResult.success) {
+    error("Afrobase project preflight failed.");
+    detail(preflightResult.message);
+    spacer();
 
-  reportRollback(rollbackResult);
+    return 1;
+  }
+
+  success("Project preflight passed.");
   spacer();
 
-  process.exit(1);
+  /* ============================================================
+     PROJECT METADATA
+  ============================================================ */
+
+  step("Creating project configuration");
+
+  const metadataResult = createProjectMetadata(
+    result.projectPath,
+    projectName,
+  );
+
+  if (!metadataResult.success) {
+    error(metadataResult.message);
+
+    const rollbackResult = rollbackProject({
+      projectPath: result.projectPath,
+      directoryCreated: result.created,
+      createdArtifacts,
+    });
+
+    reportRollback(rollbackResult);
+    spacer();
+
+    return 1;
+  }
+
+  createdArtifacts.push(
+    metadataResult.metadataPath,
+  );
+
+  success("Project configuration created.");
+  detail(metadataResult.metadataPath);
+  spacer();
+
+  /* ============================================================
+     PROJECT SCAFFOLD
+  ============================================================ */
+
+  step("Initializing Afrobase resources");
+
+  const scaffoldResult = scaffoldProject(
+    result.projectPath,
+  );
+
+  if (!scaffoldResult.success) {
+    error(scaffoldResult.message);
+
+    const rollbackResult = rollbackProject({
+      projectPath: result.projectPath,
+      directoryCreated: result.created,
+      createdArtifacts,
+    });
+
+    reportRollback(rollbackResult);
+    spacer();
+
+    return 1;
+  }
+
+  createdArtifacts.push(
+    scaffoldResult.afrobaseDirectory,
+    scaffoldResult.gitignorePath,
+    scaffoldResult.envExamplePath,
+    scaffoldResult.readmePath,
+    scaffoldResult.clientPath,
+  );
+
+  success("Afrobase resources initialized.");
+  detail(scaffoldResult.afrobaseDirectory);
+  detail(scaffoldResult.clientPath);
+  detail(scaffoldResult.gitignorePath);
+  detail(scaffoldResult.envExamplePath);
+  spacer();
+
+  /* ============================================================
+     CONFIGURATION VERIFICATION
+  ============================================================ */
+
+  step("Verifying project");
+
+  const configResult = readProjectConfig(
+    result.projectPath,
+  );
+
+  if (!configResult.success) {
+    error(
+      "Afrobase project configuration could not be verified.",
+    );
+    detail(configResult.message);
+
+    const rollbackResult = rollbackProject({
+      projectPath: result.projectPath,
+      directoryCreated: result.created,
+      createdArtifacts,
+    });
+
+    reportRollback(rollbackResult);
+    spacer();
+
+    return 1;
+  }
+
+  success("Project configuration verified.");
+  detail(configResult.configPath);
+  spacer();
+
+  /* ============================================================
+     COMPLETION
+  ============================================================ */
+
+  heading("Afrobase project ready");
+  spacer();
+
+  label("Project", projectName);
+  label("Location", result.projectPath);
+  spacer();
+
+  info("Created");
+  detail("afrobase.json");
+  detail("afrobase/");
+  detail("afrobase/README.md");
+  detail("afrobase/client.ts");
+  detail(".env.example");
+  detail(".gitignore");
+  spacer();
+
+  info("Next");
+  detail(`cd ${projectName}`);
+  spacer();
+
+  info("Install the Afrobase SDK");
+  detail("npm install @afrobase/sdk");
+  spacer();
+
+  info("Configure your project");
+  detail(
+    "Set AFROBASE_PROJECT after this project is linked to Afrobase.",
+  );
+  detail(
+    "AFROBASE_API_URL may be used to override the default API origin.",
+  );
+  spacer();
+
+  info("Use Afrobase");
+  detail(
+    "Import the generated client from afrobase/client.ts.",
+  );
+  spacer();
+
+  info(
+    "Cloud authentication and project linking are not performed automatically.",
+  );
+  spacer();
+
+  return 0;
 }
 
-success("Project configuration verified.");
-detail(configResult.configPath);
-spacer();
-
 /* ============================================================
-   COMPLETION
+   MAIN CLI ROUTER
+
+   - Version and help do not enter the cloud or scaffold flow.
+   - Cloud commands never enter project creation.
+   - Project creation never enters cloud authentication.
+   - Natural shutdown allows Node.js to clean up async handles.
 ============================================================ */
 
-heading("Afrobase project ready");
-spacer();
+async function main() {
+  if (
+    args.includes("--version") ||
+    args.includes("-v")
+  ) {
+    info(VERSION);
+    return 0;
+  }
 
-label("Project", projectName);
-label("Location", result.projectPath);
-spacer();
+  if (
+    args.includes("--help") ||
+    args.includes("-h")
+  ) {
+    printHelp();
+    return 0;
+  }
 
-info("Created");
-detail("afrobase.json");
-detail("afrobase/");
-detail("afrobase/README.md");
-detail("afrobase/client.ts");
-detail(".env.example");
-detail(".gitignore");
-spacer();
+  const firstArgument = args[0];
 
-info("Next");
-detail(`cd ${projectName}`);
-spacer();
+  if (isCliCommand(firstArgument)) {
+    return await runCliCommand(
+      firstArgument,
+      args.slice(1),
+    );
+  }
 
-info("Install the Afrobase SDK");
-detail("npm install @afrobase/sdk");
-spacer();
+  return await runProjectCreation();
+}
 
-info("Configure your project");
-detail(
-  "Set AFROBASE_PROJECT after this project is linked to Afrobase.",
-);
-detail(
-  "AFROBASE_API_URL may be used to override the default API origin.",
-);
-spacer();
+/* ============================================================
+   GRACEFUL PROCESS LIFECYCLE
 
-info("Use Afrobase");
-detail(
-  "Import the generated client from afrobase/client.ts.",
-);
-spacer();
+   Never force process.exit() after cloud HTTP operations.
+   Allow Node.js to close active handles naturally.
+============================================================ */
 
-info(
-  "Cloud authentication and project linking are not performed automatically.",
-);
-spacer();
+try {
+  process.exitCode = await main();
+} catch (caughtError) {
+  error("Afrobase CLI encountered an unexpected error.");
+
+  if (process.env.AFROBASE_DEBUG === "1") {
+    console.error(caughtError);
+  }
+
+  process.exitCode = 1;
+}
