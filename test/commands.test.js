@@ -643,3 +643,156 @@ test(
     assert.equal(exitCode, 1);
   },
 );
+
+/* ============================================================
+   CLOUD02-G — SWITCH COMMAND REGRESSION TESTS
+============================================================ */
+
+test(
+  "switch command delegates to authenticated project switching",
+  async () => {
+    let receivedProjectId = null;
+
+    const projectId =
+      `proj_${"b".repeat(32)}`;
+
+    const exitCode = await runCliCommand(
+      "switch",
+      [projectId],
+      {
+        switchProject: async (args) => {
+          receivedProjectId = args.projectId;
+
+          return {
+            status: "switched",
+            previousProjectId:
+              `proj_${"a".repeat(32)}`,
+            project: {
+              projectId,
+              name: "Afrobase Production",
+              environment: "production",
+              organization: {
+                name: "Afrobase",
+              },
+            },
+            configPath: "afrobase.json",
+          };
+        },
+      },
+    );
+
+    assert.equal(exitCode, 0);
+    assert.equal(receivedProjectId, projectId);
+  },
+);
+
+test(
+  "switch command handles an already-selected project",
+  async () => {
+    const projectId =
+      `proj_${"a".repeat(32)}`;
+
+    const exitCode = await runCliCommand(
+      "switch",
+      [projectId],
+      {
+        switchProject: async () => ({
+          status: "already_selected",
+          previousProjectId: projectId,
+          project: {
+            projectId,
+            name: "Afrobase",
+            environment: "production",
+            organization: {
+              name: "Afrobase",
+            },
+          },
+          configPath: "afrobase.json",
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "switch command requires an explicit project ID",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "switch",
+      [],
+      {
+        switchProject: async () => {
+          called = true;
+          return {};
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(called, false);
+  },
+);
+
+test(
+  "switch command rejects extra arguments",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "switch",
+      [
+        `proj_${"a".repeat(32)}`,
+        "unexpected",
+      ],
+      {
+        switchProject: async () => {
+          called = true;
+          return {};
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(called, false);
+  },
+);
+
+test(
+  "switch command fails safely when switching throws",
+  async () => {
+    const exitCode = await runCliCommand(
+      "switch",
+      [`proj_${"b".repeat(32)}`],
+      {
+        switchProject: async () => {
+          throw new Error(
+            "Sensitive internal failure",
+          );
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "switch command rejects unexpected result statuses",
+  async () => {
+    const exitCode = await runCliCommand(
+      "switch",
+      [`proj_${"b".repeat(32)}`],
+      {
+        switchProject: async () => ({
+          status: "unexpected",
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);

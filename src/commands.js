@@ -34,6 +34,11 @@ import {
   unlinkCloudProject,
 } from "./cloud-unlink.js";
 
+import {
+  CloudSwitchError,
+  switchCloudProject,
+} from "./cloud-switch.js";
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
@@ -42,6 +47,7 @@ export const COMMAND_NAMES = Object.freeze([
   "link",
   "status",
   "unlink",
+  "switch",
 ]);
 
 const COMMAND_DESCRIPTIONS = Object.freeze({
@@ -52,6 +58,7 @@ const COMMAND_DESCRIPTIONS = Object.freeze({
   link: "Link a local project to Afrobase Cloud",
   status: "Verify the local Afrobase Cloud project link",
   unlink: "Remove the local Afrobase Cloud project link",
+  switch: "Switch to another accessible cloud project",
 });
 
 export function isCliCommand(value) {
@@ -79,6 +86,7 @@ function safeErrorMessage(cause) {
     cause instanceof CloudLinkError ||
     cause instanceof CloudStatusError ||
     cause instanceof CloudUnlinkError ||
+    cause instanceof CloudSwitchError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -99,6 +107,7 @@ export async function runCliCommand(
     link = linkCloudProject,
     status = getCloudProjectStatus,
     unlink = unlinkCloudProject,
+    switchProject = switchCloudProject,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -106,14 +115,20 @@ export async function runCliCommand(
     return 1;
   }
 
-  if (
+  const invalidArguments =
     command === "link"
       ? args.length > 1
-      : args.length > 0
-  ) {
+      : command === "switch"
+        ? args.length !== 1
+        : args.length > 0;
+
+  if (invalidArguments) {
     error(
-      `Unexpected arguments for "${command}": ${args.join(" ")}`,
+      command === "switch"
+        ? 'Usage: create-afrobase switch <projectId>'
+        : `Unexpected arguments for "${command}": ${args.join(" ")}`,
     );
+
     return 1;
   }
 
@@ -168,9 +183,7 @@ export async function runCliCommand(
           `Credential: ${result.credentialName}`,
         );
 
-        if (
-          Number.isSafeInteger(result.expiresAt)
-        ) {
+        if (Number.isSafeInteger(result.expiresAt)) {
           detail(
             `Expires: ${new Date(
               result.expiresAt,
@@ -201,27 +214,15 @@ export async function runCliCommand(
 
         for (const project of availableProjects) {
           success(project.name);
-
-          detail(
-            `Project ID: ${project.projectId}`,
-          );
-
+          detail(`Project ID: ${project.projectId}`);
           detail(
             `Organization: ${project.organization.name}`,
           );
-
-          detail(
-            `Slug: ${project.slug}`,
-          );
-
+          detail(`Slug: ${project.slug}`);
           detail(
             `Environment: ${project.environment ?? "unspecified"}`,
           );
-
-          detail(
-            `Your role: ${project.role}`,
-          );
-
+          detail(`Your role: ${project.role}`);
           spacer();
         }
 
@@ -241,21 +242,14 @@ export async function runCliCommand(
           );
         }
 
-        detail(
-          `Project: ${result.project.name}`,
-        );
-
+        detail(`Project: ${result.project.name}`);
         detail(
           `Project ID: ${result.project.projectId}`,
         );
-
         detail(
           `Organization: ${result.project.organization.name}`,
         );
-
-        detail(
-          `Config: ${result.configPath}`,
-        );
+        detail(`Config: ${result.configPath}`);
 
         spacer();
         return 0;
@@ -268,23 +262,16 @@ export async function runCliCommand(
           "Local project configuration valid.",
         );
 
-        detail(
-          `Project: ${result.local.name}`,
-        );
-
-        detail(
-          `Config: ${result.local.configPath}`,
-        );
+        detail(`Project: ${result.local.name}`);
+        detail(`Config: ${result.local.configPath}`);
 
         if (result.status === "unlinked") {
           info(
             "Local project is not linked to Afrobase Cloud.",
           );
-
           detail(
             'Run "create-afrobase projects" and then "create-afrobase link <projectId>".',
           );
-
           spacer();
           return 0;
         }
@@ -292,18 +279,15 @@ export async function runCliCommand(
         detail(
           `Project ID: ${result.local.projectId}`,
         );
-
         spacer();
 
         if (result.status === "inaccessible") {
           error(
             "Linked project is not accessible to the authenticated developer.",
           );
-
           detail(
             "Check your organization membership and project access.",
           );
-
           spacer();
           return 1;
         }
@@ -315,32 +299,22 @@ export async function runCliCommand(
           );
         }
 
-        success(
-          "Cloud project verified.",
-        );
-
+        success("Cloud project verified.");
         detail(
           `Cloud project: ${result.cloud.name}`,
         );
-
         detail(
           `Organization: ${result.cloud.organization.name}`,
         );
-
         detail(
           `Environment: ${result.cloud.environment ?? "unspecified"}`,
         );
-
-        detail(
-          `Your role: ${result.cloud.role}`,
-        );
+        detail(`Your role: ${result.cloud.role}`);
 
         spacer();
-
         success(
           "Local project is linked and accessible.",
         );
-
         spacer();
         return 0;
       }
@@ -358,17 +332,53 @@ export async function runCliCommand(
           );
         }
 
-        detail(
-          `Project: ${result.projectName}`,
-        );
-
-        detail(
-          `Config: ${result.configPath}`,
-        );
+        detail(`Project: ${result.projectName}`);
+        detail(`Config: ${result.configPath}`);
 
         info(
           "Cloud project and CLI credentials were not modified.",
         );
+
+        spacer();
+        return 0;
+      }
+
+      case "switch": {
+        const result = await switchProject({
+          projectId: args[0],
+        });
+
+        if (result.status === "already_selected") {
+          info(
+            "Local project already targets this cloud project.",
+          );
+        } else if (result.status === "switched") {
+          success(
+            "Local cloud project switched successfully.",
+          );
+        } else {
+          throw new CloudSwitchError(
+            "Unexpected project switching result.",
+            "invalid_switch_result",
+          );
+        }
+
+        detail(
+          `Previous project ID: ${result.previousProjectId}`,
+        );
+        detail(
+          `Current project ID: ${result.project.projectId}`,
+        );
+        detail(
+          `Cloud project: ${result.project.name}`,
+        );
+        detail(
+          `Organization: ${result.project.organization.name}`,
+        );
+        detail(
+          `Environment: ${result.project.environment ?? "unspecified"}`,
+        );
+        detail(`Config: ${result.configPath}`);
 
         spacer();
         return 0;
