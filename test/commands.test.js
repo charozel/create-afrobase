@@ -554,3 +554,92 @@ test(
     assert.equal(exitCode, 1);
   },
 );
+
+/* ============================================================
+   CLOUD02-F — UNLINK COMMAND REGRESSION TESTS
+============================================================ */
+
+test(
+  "unlink command delegates to local unlinking",
+  async () => {
+    let unlinkCalled = false;
+
+    const exitCode = await runCliCommand(
+      "unlink",
+      [],
+      {
+        unlink: async () => {
+          unlinkCalled = true;
+
+          return {
+            status: "unlinked",
+            projectName: "local-app",
+            configPath: "afrobase.json",
+          };
+        },
+      },
+    );
+
+    assert.equal(unlinkCalled, true);
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "unlink command handles an already-unlinked project",
+  async () => {
+    const exitCode = await runCliCommand(
+      "unlink",
+      [],
+      {
+        unlink: async () => ({
+          status: "already_unlinked",
+          projectName: "local-app",
+          configPath: "afrobase.json",
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "unlink command rejects unexpected arguments",
+  async () => {
+    let unlinkCalled = false;
+
+    const exitCode = await runCliCommand(
+      "unlink",
+      ["unexpected"],
+      {
+        unlink: async () => {
+          unlinkCalled = true;
+          return {};
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(unlinkCalled, false);
+  },
+);
+
+test(
+  "unlink command fails safely when local unlinking throws",
+  async () => {
+    const exitCode = await runCliCommand(
+      "unlink",
+      [],
+      {
+        unlink: async () => {
+          throw new Error(
+            "Simulated filesystem failure",
+          );
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);

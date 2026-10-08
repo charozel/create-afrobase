@@ -29,6 +29,11 @@ import {
   getCloudProjectStatus,
 } from "./cloud-status.js";
 
+import {
+  CloudUnlinkError,
+  unlinkCloudProject,
+} from "./cloud-unlink.js";
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
@@ -36,6 +41,7 @@ export const COMMAND_NAMES = Object.freeze([
   "projects",
   "link",
   "status",
+  "unlink",
 ]);
 
 const COMMAND_DESCRIPTIONS = Object.freeze({
@@ -45,6 +51,7 @@ const COMMAND_DESCRIPTIONS = Object.freeze({
   projects: "List accessible Afrobase projects",
   link: "Link a local project to Afrobase Cloud",
   status: "Verify the local Afrobase Cloud project link",
+  unlink: "Remove the local Afrobase Cloud project link",
 });
 
 export function isCliCommand(value) {
@@ -71,6 +78,7 @@ function safeErrorMessage(cause) {
     cause instanceof CliSessionError ||
     cause instanceof CloudLinkError ||
     cause instanceof CloudStatusError ||
+    cause instanceof CloudUnlinkError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -90,6 +98,7 @@ export async function runCliCommand(
     projects = listCloudProjects,
     link = linkCloudProject,
     status = getCloudProjectStatus,
+    unlink = unlinkCloudProject,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -330,6 +339,35 @@ export async function runCliCommand(
 
         success(
           "Local project is linked and accessible.",
+        );
+
+        spacer();
+        return 0;
+      }
+
+      case "unlink": {
+        const result = await unlink();
+
+        if (result.status === "already_unlinked") {
+          info(
+            "Local project is already unlinked.",
+          );
+        } else {
+          success(
+            "Local project unlinked from Afrobase Cloud.",
+          );
+        }
+
+        detail(
+          `Project: ${result.projectName}`,
+        );
+
+        detail(
+          `Config: ${result.configPath}`,
+        );
+
+        info(
+          "Cloud project and CLI credentials were not modified.",
         );
 
         spacer();
