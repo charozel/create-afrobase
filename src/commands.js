@@ -5,17 +5,15 @@ import {
   heading,
   info,
   spacer,
+  success,
 } from "./logger.js";
 
-/* ============================================================
-   AFROBASE CLI COMMAND REGISTRY
-
-   Explicit command names are reserved so they cannot be
-   interpreted as project names.
-
-   CLOUD02-A establishes dispatch only.
-   Authentication and cloud operations are implemented later.
-============================================================ */
+import {
+  CliSessionError,
+  loginCli,
+  logoutCli,
+  whoamiCli,
+} from "./cli-session.js";
 
 export const COMMAND_NAMES = Object.freeze([
   "login",
@@ -52,9 +50,26 @@ export function printCommandsHelp() {
   spacer();
 }
 
+function safeErrorMessage(cause) {
+  if (
+    cause instanceof CliSessionError ||
+    cause?.name === "CloudHttpError" ||
+    cause?.name === "CredentialStoreError"
+  ) {
+    return cause.message;
+  }
+
+  return "Afrobase Cloud command failed.";
+}
+
 export async function runCliCommand(
   command,
   args = [],
+  {
+    login = loginCli,
+    logout = logoutCli,
+    whoami = whoamiCli,
+  } = {},
 ) {
   if (!isCliCommand(command)) {
     error(`Unknown Afrobase command: ${command}`);
@@ -71,15 +86,87 @@ export async function runCliCommand(
   heading(`Afrobase ${command}`);
   spacer();
 
-  info(
-    `The "${command}" command is reserved but not yet implemented.`,
-  );
+  try {
+    switch (command) {
+      case "login": {
+        const result = await login({
+          onApprovalUrl: (url) => {
+            info("Open this authorization page:");
+            detail(url);
+            spacer();
+          },
+          onWaiting: () => {
+            info("Waiting for browser approval...");
+          },
+        });
 
-  detail(
-    "Cloud command implementation begins in CLOUD02.",
-  );
+        if (result.status !== "authenticated") {
+          throw new CliSessionError(
+            "Login did not complete.",
+            "login_failed",
+          );
+        }
 
-  spacer();
+        success("Signed in to Afrobase Cloud.");
+        spacer();
+        return 0;
+      }
 
-  return 1;
+      case "logout": {
+        const result = await logout();
+
+        if (result.removed) {
+          success("Local CLI credential removed.");
+        } else {
+          info("No local CLI credential was found.");
+        }
+
+        spacer();
+        return 0;
+      }
+
+      case "whoami": {
+        const result = await whoami();
+
+        info(`Developer: ${result.email}`);
+        detail(
+          `Credential: ${result.credentialName}`,
+        );
+
+        if (
+          Number.isSafeInteger(result.expiresAt)
+        ) {
+          detail(
+            `Expires: ${new Date(
+              result.expiresAt,
+            ).toISOString()}`,
+          );
+        }
+
+        spacer();
+        return 0;
+      }
+
+      case "projects":
+      case "link": {
+        info(
+          `The "${command}" command is reserved but not yet implemented.`,
+        );
+
+        detail(
+          "Cloud project discovery and linking will follow authentication.",
+        );
+
+        spacer();
+        return 1;
+      }
+
+      default:
+        return 1;
+    }
+  } catch (cause) {
+    error(safeErrorMessage(cause));
+    spacer();
+    return 1;
+  }
 }
