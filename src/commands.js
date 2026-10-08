@@ -39,6 +39,15 @@ import {
   switchCloudProject,
 } from "./cloud-switch.js";
 
+import {
+  CloudEnvironmentError,
+  inspectCloudEnvironment,
+} from "./cloud-environment.js";
+
+/* ============================================================
+   REGISTERED CLOUD COMMANDS
+============================================================ */
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
@@ -48,6 +57,7 @@ export const COMMAND_NAMES = Object.freeze([
   "status",
   "unlink",
   "switch",
+  "env",
 ]);
 
 const COMMAND_DESCRIPTIONS = Object.freeze({
@@ -59,6 +69,7 @@ const COMMAND_DESCRIPTIONS = Object.freeze({
   status: "Verify the local Afrobase Cloud project link",
   unlink: "Remove the local Afrobase Cloud project link",
   switch: "Switch to another accessible cloud project",
+  env: "Inspect the linked cloud project environment",
 });
 
 export function isCliCommand(value) {
@@ -80,6 +91,10 @@ export function printCommandsHelp() {
   spacer();
 }
 
+/* ============================================================
+   SAFE ERROR HANDLING
+============================================================ */
+
 function safeErrorMessage(cause) {
   if (
     cause instanceof CliSessionError ||
@@ -87,6 +102,7 @@ function safeErrorMessage(cause) {
     cause instanceof CloudStatusError ||
     cause instanceof CloudUnlinkError ||
     cause instanceof CloudSwitchError ||
+    cause instanceof CloudEnvironmentError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -95,6 +111,10 @@ function safeErrorMessage(cause) {
 
   return "Afrobase Cloud command failed.";
 }
+
+/* ============================================================
+   COMMAND DISPATCHER
+============================================================ */
 
 export async function runCliCommand(
   command,
@@ -108,6 +128,7 @@ export async function runCliCommand(
     status = getCloudProjectStatus,
     unlink = unlinkCloudProject,
     switchProject = switchCloudProject,
+    inspectEnvironment = inspectCloudEnvironment,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -379,6 +400,54 @@ export async function runCliCommand(
           `Environment: ${result.project.environment ?? "unspecified"}`,
         );
         detail(`Config: ${result.configPath}`);
+
+        spacer();
+        return 0;
+      }
+
+      /* ======================================================
+         CLOUD02-H — ENVIRONMENT INSPECTION
+      ====================================================== */
+
+      case "env": {
+        const result = await inspectEnvironment();
+
+        if (result?.status !== "inspected") {
+          throw new CloudEnvironmentError(
+            "Unexpected cloud environment inspection result.",
+            "invalid_environment_result",
+          );
+        }
+
+        success("Cloud project verified.");
+
+        detail(
+          `Project: ${result.projectName}`,
+        );
+        detail(
+          `Organization: ${result.organizationName}`,
+        );
+        detail(
+          `Environment: ${result.environment}`,
+        );
+        detail(
+          `Your role: ${result.role}`,
+        );
+        detail(
+          `Project ID: ${result.projectId}`,
+        );
+        detail(
+          `Local project: ${result.localProjectName}`,
+        );
+        detail(
+          `Config: ${result.configPath}`,
+        );
+
+        spacer();
+
+        info(
+          "Environment inspection is read-only. No configuration or credentials were modified.",
+        );
 
         spacer();
         return 0;

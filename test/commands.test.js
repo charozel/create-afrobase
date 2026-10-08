@@ -796,3 +796,128 @@ test(
     assert.equal(exitCode, 1);
   },
 );
+
+/* ============================================================
+   CLOUD02-H — ENV COMMAND REGRESSION TESTS
+============================================================ */
+
+test(
+  "env command displays verified cloud environment",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "env",
+      [],
+      {
+        inspectEnvironment: async () => {
+          called = true;
+
+          return {
+            status: "inspected",
+            projectId: `proj_${"a".repeat(32)}`,
+            projectName: "Afrobase",
+            organizationName: "Afrobase",
+            environment: "production",
+            role: "owner",
+            localProjectName: "my-fintech",
+            configPath: "afrobase.json",
+          };
+        },
+      },
+    );
+
+    assert.equal(exitCode, 0);
+    assert.equal(called, true);
+  },
+);
+
+test(
+  "env command rejects unexpected arguments",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "env",
+      ["unexpected"],
+      {
+        inspectEnvironment: async () => {
+          called = true;
+          return {};
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(called, false);
+  },
+);
+
+test(
+  "env command fails safely when inspection throws",
+  async () => {
+    const exitCode = await runCliCommand(
+      "env",
+      [],
+      {
+        inspectEnvironment: async () => {
+          throw new Error(
+            "Sensitive internal inspection failure",
+          );
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "env command rejects unexpected inspection results",
+  async () => {
+    const exitCode = await runCliCommand(
+      "env",
+      [],
+      {
+        inspectEnvironment: async () => ({
+          status: "unexpected",
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "env command rejects a missing inspection result",
+  async () => {
+    const exitCode = await runCliCommand(
+      "env",
+      [],
+      {
+        inspectEnvironment: async () => null,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "env command is recognized as a reserved cloud command",
+  async () => {
+    const { isCliCommand } =
+      await import("../src/commands.js");
+
+    assert.equal(
+      isCliCommand("env"),
+      true,
+    );
+
+    assert.equal(
+      isCliCommand("environment"),
+      false,
+    );
+  },
+);
