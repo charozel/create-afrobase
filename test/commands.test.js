@@ -921,3 +921,225 @@ test(
     );
   },
 );
+
+/* ============================================================
+   CLOUD02-I — DOCTOR COMMAND REGRESSION TESTS
+============================================================ */
+
+function healthyDoctorResult() {
+  return {
+    status: "healthy",
+    passed: 5,
+    failed: 0,
+    cloudReachable: true,
+    checks: [
+      {
+        id: "configuration",
+        label: "Local configuration",
+        status: "pass",
+        message: "afrobase.json is valid.",
+        advice: null,
+      },
+      {
+        id: "credential",
+        label: "CLI credential",
+        status: "pass",
+        message: "A usable CLI credential was found.",
+        advice: null,
+      },
+      {
+        id: "cloud",
+        label: "Cloud authentication",
+        status: "pass",
+        message: "Developer authenticated.",
+        advice: null,
+      },
+      {
+        id: "project",
+        label: "Project authorization",
+        status: "pass",
+        message: "Cloud project is accessible.",
+        advice: null,
+      },
+      {
+        id: "environment",
+        label: "Cloud environment",
+        status: "pass",
+        message: "production",
+        advice: null,
+      },
+    ],
+  };
+}
+
+test(
+  "doctor command is recognized as a reserved cloud command",
+  () => {
+    assert.equal(isCliCommand("doctor"), true);
+    assert.equal(COMMAND_NAMES.includes("doctor"), true);
+    assert.equal(isCliCommand("diagnose"), false);
+  },
+);
+
+test(
+  "doctor command delegates to diagnostics successfully",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => {
+          called = true;
+          return healthyDoctorResult();
+        },
+      },
+    );
+
+    assert.equal(called, true);
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "doctor command returns failure when diagnostics are unhealthy",
+  async () => {
+    const result = healthyDoctorResult();
+
+    result.status = "unhealthy";
+    result.passed = 4;
+    result.failed = 1;
+
+    result.checks[3] = {
+      id: "project",
+      label: "Project authorization",
+      status: "fail",
+      message: "Linked project is inaccessible.",
+      advice: "Check organization membership.",
+    };
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => result,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "doctor command rejects unexpected arguments",
+  async () => {
+    let called = false;
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      ["unexpected"],
+      {
+        doctor: async () => {
+          called = true;
+          return healthyDoctorResult();
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(called, false);
+  },
+);
+
+test(
+  "doctor command fails safely when diagnostics throw",
+  async () => {
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => {
+          throw new Error(
+            "Sensitive internal diagnostic failure",
+          );
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "doctor command rejects a missing diagnostic result",
+  async () => {
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => null,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "doctor command rejects inconsistent diagnostic totals",
+  async () => {
+    const result = healthyDoctorResult();
+
+    result.passed = 4;
+    result.failed = 1;
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => result,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "doctor command rejects invalid diagnostic check statuses",
+  async () => {
+    const result = healthyDoctorResult();
+
+    result.checks[0].status = "unknown";
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => result,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "doctor command rejects contradictory health status",
+  async () => {
+    const result = healthyDoctorResult();
+
+    result.status = "unhealthy";
+
+    const exitCode = await runCliCommand(
+      "doctor",
+      [],
+      {
+        doctor: async () => result,
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);

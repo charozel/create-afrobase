@@ -44,8 +44,13 @@ import {
   inspectCloudEnvironment,
 } from "./cloud-environment.js";
 
+import {
+  CloudDoctorError,
+  diagnoseCloudProject,
+} from "./cloud-doctor.js";
+
 /* ============================================================
-   REGISTERED CLOUD COMMANDS
+   AFROBASE CLOUD COMMAND REGISTRY
 ============================================================ */
 
 export const COMMAND_NAMES = Object.freeze([
@@ -58,6 +63,7 @@ export const COMMAND_NAMES = Object.freeze([
   "unlink",
   "switch",
   "env",
+  "doctor",
 ]);
 
 const COMMAND_DESCRIPTIONS = Object.freeze({
@@ -70,6 +76,7 @@ const COMMAND_DESCRIPTIONS = Object.freeze({
   unlink: "Remove the local Afrobase Cloud project link",
   switch: "Switch to another accessible cloud project",
   env: "Inspect the linked cloud project environment",
+  doctor: "Diagnose local configuration and cloud connectivity",
 });
 
 export function isCliCommand(value) {
@@ -92,7 +99,7 @@ export function printCommandsHelp() {
 }
 
 /* ============================================================
-   SAFE ERROR HANDLING
+   SAFE ERROR MESSAGES
 ============================================================ */
 
 function safeErrorMessage(cause) {
@@ -103,6 +110,7 @@ function safeErrorMessage(cause) {
     cause instanceof CloudUnlinkError ||
     cause instanceof CloudSwitchError ||
     cause instanceof CloudEnvironmentError ||
+    cause instanceof CloudDoctorError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -110,6 +118,63 @@ function safeErrorMessage(cause) {
   }
 
   return "Afrobase Cloud command failed.";
+}
+
+/* ============================================================
+   DOCTOR RESULT VALIDATION
+============================================================ */
+
+function validateDoctorResult(result) {
+  if (
+    !result ||
+    typeof result !== "object" ||
+    !Array.isArray(result.checks) ||
+    !Number.isSafeInteger(result.passed) ||
+    !Number.isSafeInteger(result.failed) ||
+    result.passed < 0 ||
+    result.failed < 0 ||
+    result.passed + result.failed !==
+      result.checks.length ||
+    !["healthy", "unhealthy"].includes(result.status)
+  ) {
+    throw new CloudDoctorError(
+      "Doctor returned an invalid diagnostic result.",
+      "invalid_doctor_result",
+    );
+  }
+
+  for (const check of result.checks) {
+    if (
+      !check ||
+      typeof check.label !== "string" ||
+      typeof check.message !== "string" ||
+      !["pass", "fail"].includes(check.status)
+    ) {
+      throw new CloudDoctorError(
+        "Doctor returned an invalid diagnostic check.",
+        "invalid_doctor_result",
+      );
+    }
+  }
+
+  const actualPassed = result.checks.filter(
+    (check) => check.status === "pass",
+  ).length;
+
+  if (
+    actualPassed !== result.passed ||
+    result.failed !==
+      result.checks.length - actualPassed ||
+    (result.status === "healthy") !==
+      (result.failed === 0)
+  ) {
+    throw new CloudDoctorError(
+      "Doctor diagnostic totals are inconsistent.",
+      "invalid_doctor_result",
+    );
+  }
+
+  return result;
 }
 
 /* ============================================================
@@ -129,6 +194,7 @@ export async function runCliCommand(
     unlink = unlinkCloudProject,
     switchProject = switchCloudProject,
     inspectEnvironment = inspectCloudEnvironment,
+    doctor = diagnoseCloudProject,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -405,10 +471,6 @@ export async function runCliCommand(
         return 0;
       }
 
-      /* ======================================================
-         CLOUD02-H — ENVIRONMENT INSPECTION
-      ====================================================== */
-
       case "env": {
         const result = await inspectEnvironment();
 
@@ -421,27 +483,19 @@ export async function runCliCommand(
 
         success("Cloud project verified.");
 
-        detail(
-          `Project: ${result.projectName}`,
-        );
+        detail(`Project: ${result.projectName}`);
         detail(
           `Organization: ${result.organizationName}`,
         );
         detail(
           `Environment: ${result.environment}`,
         );
-        detail(
-          `Your role: ${result.role}`,
-        );
-        detail(
-          `Project ID: ${result.projectId}`,
-        );
+        detail(`Your role: ${result.role}`);
+        detail(`Project ID: ${result.projectId}`);
         detail(
           `Local project: ${result.localProjectName}`,
         );
-        detail(
-          `Config: ${result.configPath}`,
-        );
+        detail(`Config: ${result.configPath}`);
 
         spacer();
 
@@ -451,6 +505,57 @@ export async function runCliCommand(
 
         spacer();
         return 0;
+      }
+
+      /* ======================================================
+         CLOUD02-I — DOCTOR
+      ====================================================== */
+
+      case "doctor": {
+        const result = validateDoctorResult(
+          await doctor(),
+        );
+
+        for (const check of result.checks) {
+          if (check.status === "pass") {
+            success(check.label);
+          } else {
+            error(check.label);
+          }
+
+          detail(check.message);
+
+          if (
+            check.status === "fail" &&
+            typeof check.advice === "string" &&
+            check.advice.length > 0
+          ) {
+            detail(`Next: ${check.advice}`);
+          }
+
+          spacer();
+        }
+
+        info(
+          `${result.passed} passed · ${result.failed} failed`,
+        );
+
+        spacer();
+
+        if (result.status === "healthy") {
+          success(
+            "Your Afrobase project is ready.",
+          );
+          spacer();
+          return 0;
+        }
+
+        error(
+          "Afrobase Doctor found issues that need attention.",
+        );
+
+        spacer();
+        return 1;
       }
 
       default:
