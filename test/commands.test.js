@@ -369,8 +369,34 @@ test("projects lists authorized cloud projects", async () => {
   assert.equal(exitCode, 0);
 });
 
-test("link remains reserved", async () => {
-  const exitCode = await runCliCommand("link");
 
-  assert.equal(exitCode, 1);
+test("link command delegates to cloud project linking", async () => {
+  const projectId = `proj_${"a".repeat(32)}`;
+
+  let selectedProjectId;
+
+  const exitCode = await runCliCommand(
+    "link",
+    [projectId],
+    {
+      link: async ({ projectId: selected }) => {
+        selectedProjectId = selected;
+
+        return {
+          status: "linked",
+          project: {
+            projectId,
+            name: "Afrobase",
+            organization: {
+              name: "Afrobase",
+            },
+          },
+          configPath: "afrobase.json",
+        };
+      },
+    },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(selectedProjectId, projectId);
 });

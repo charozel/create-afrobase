@@ -19,6 +19,11 @@ import {
   listCloudProjects,
 } from "./cloud-projects.js";
 
+import {
+  CloudLinkError,
+  linkCloudProject,
+} from "./cloud-link.js";
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
@@ -57,6 +62,7 @@ export function printCommandsHelp() {
 function safeErrorMessage(cause) {
   if (
     cause instanceof CliSessionError ||
+    cause instanceof CloudLinkError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -74,6 +80,7 @@ export async function runCliCommand(
     logout = logoutCli,
     whoami = whoamiCli,
     projects = listCloudProjects,
+    link = linkCloudProject,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -81,7 +88,11 @@ export async function runCliCommand(
     return 1;
   }
 
-  if (args.length > 0) {
+  if (
+    command === "link"
+      ? args.length > 1
+      : args.length > 0
+  ) {
     error(
       `Unexpected arguments for "${command}": ${args.join(" ")}`,
     );
@@ -200,16 +211,36 @@ export async function runCliCommand(
       }
 
       case "link": {
-        info(
-          'The "link" command is reserved but not yet implemented.',
+        const result = await link({
+          projectId: args[0],
+        });
+
+        if (result.status === "already_linked") {
+          info("Local project is already linked.");
+        } else {
+          success(
+            "Local project linked to Afrobase Cloud.",
+          );
+        }
+
+        detail(
+          `Project: ${result.project.name}`,
         );
 
         detail(
-          "Cloud project linking will follow project discovery.",
+          `Project ID: ${result.project.projectId}`,
+        );
+
+        detail(
+          `Organization: ${result.project.organization.name}`,
+        );
+
+        detail(
+          `Config: ${result.configPath}`,
         );
 
         spacer();
-        return 1;
+        return 0;
       }
 
       default:
