@@ -1,0 +1,9 @@
+{
+  "name": "afrobase-link-test",
+  "platform": "afrobase",
+  "version": 1,
+  "sdk": {
+    "package": "@afrobase/sdk"
+  },
+  "projectId": "proj_2f1f752878baed086bd9377f83a72b0c"
+}
