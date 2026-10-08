@@ -15,6 +15,10 @@ import {
   whoamiCli,
 } from "./cli-session.js";
 
+import {
+  listCloudProjects,
+} from "./cloud-projects.js";
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
@@ -69,6 +73,7 @@ export async function runCliCommand(
     login = loginCli,
     logout = logoutCli,
     whoami = whoamiCli,
+    projects = listCloudProjects,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -129,6 +134,7 @@ export async function runCliCommand(
         const result = await whoami();
 
         info(`Developer: ${result.email}`);
+
         detail(
           `Credential: ${result.credentialName}`,
         );
@@ -147,14 +153,59 @@ export async function runCliCommand(
         return 0;
       }
 
-      case "projects":
+      case "projects": {
+        const availableProjects = await projects();
+
+        if (availableProjects.length === 0) {
+          info("No accessible cloud projects found.");
+          detail(
+            "Create a project in an organization you belong to, then try again.",
+          );
+          spacer();
+          return 0;
+        }
+
+        info(
+          `${availableProjects.length} accessible project(s):`,
+        );
+        spacer();
+
+        for (const project of availableProjects) {
+          success(project.name);
+
+          detail(
+            `Project ID: ${project.projectId}`,
+          );
+
+          detail(
+            `Organization: ${project.organization.name}`,
+          );
+
+          detail(
+            `Slug: ${project.slug}`,
+          );
+
+          detail(
+            `Environment: ${project.environment ?? "unspecified"}`,
+          );
+
+          detail(
+            `Your role: ${project.role}`,
+          );
+
+          spacer();
+        }
+
+        return 0;
+      }
+
       case "link": {
         info(
-          `The "${command}" command is reserved but not yet implemented.`,
+          'The "link" command is reserved but not yet implemented.',
         );
 
         detail(
-          "Cloud project discovery and linking will follow authentication.",
+          "Cloud project linking will follow project discovery.",
         );
 
         spacer();

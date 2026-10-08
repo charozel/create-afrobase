@@ -344,8 +344,33 @@ test("command dispatcher runs mocked whoami successfully", async () => {
   assert.equal(code, 0);
 });
 
-test("projects and link remain reserved", async () => {
-  assert.equal(await runCliCommand("projects"), 1);
 
-  assert.equal(await runCliCommand("link"), 1);
+test("projects lists authorized cloud projects", async () => {
+  const exitCode = await runCliCommand(
+    "projects",
+    [],
+    {
+      projects: async () => [
+        {
+          projectId: `proj_${"a".repeat(32)}`,
+          name: "Afrobase",
+          slug: "afrobase",
+          environment: "production",
+          organization: {
+            name: "Afrobase",
+            slug: "afrobase",
+          },
+          role: "owner",
+        },
+      ],
+    },
+  );
+
+  assert.equal(exitCode, 0);
+});
+
+test("link remains reserved", async () => {
+  const exitCode = await runCliCommand("link");
+
+  assert.equal(exitCode, 1);
 });
