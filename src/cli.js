@@ -16,6 +16,11 @@ import {
 import { preflightProject } from "./project-preflight.js";
 import { rollbackProject } from "./project-rollback.js";
 
+import {
+  isCliCommand,
+  printCommandsHelp,
+  runCliCommand,
+} from "./commands.js";
 const VERSION = "0.0.1";
 
 const args = process.argv.slice(2);
@@ -49,6 +54,8 @@ function printHelp() {
   info("Usage:");
   detail("create-afrobase [project-name] [options]");
   spacer();
+
+  printCommandsHelp();
 
   info("Options:");
   detail("-h, --help       Show CLI help");
@@ -95,6 +102,22 @@ if (args.includes("--help") || args.includes("-h")) {
   printHelp();
   process.exit(0);
 }
+/* ============================================================
+   EXPLICIT COMMAND DISPATCH
+
+   Commands must never enter the project creation pipeline.
+============================================================ */
+
+const firstArgument = args[0];
+
+if (isCliCommand(firstArgument)) {
+  const exitCode = await runCliCommand(
+    firstArgument,
+    args.slice(1),
+  );
+
+  process.exit(exitCode);
+}
 
 /* ============================================================
    PROJECT NAME
@@ -103,7 +126,6 @@ if (args.includes("--help") || args.includes("-h")) {
 const projectName = args.find(
   (arg) => !arg.startsWith("-"),
 );
-
 printLogo();
 
 if (!projectName) {
