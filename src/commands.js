@@ -24,12 +24,18 @@ import {
   linkCloudProject,
 } from "./cloud-link.js";
 
+import {
+  CloudStatusError,
+  getCloudProjectStatus,
+} from "./cloud-status.js";
+
 export const COMMAND_NAMES = Object.freeze([
   "login",
   "logout",
   "whoami",
   "projects",
   "link",
+  "status",
 ]);
 
 const COMMAND_DESCRIPTIONS = Object.freeze({
@@ -38,6 +44,7 @@ const COMMAND_DESCRIPTIONS = Object.freeze({
   whoami: "Show the authenticated developer",
   projects: "List accessible Afrobase projects",
   link: "Link a local project to Afrobase Cloud",
+  status: "Verify the local Afrobase Cloud project link",
 });
 
 export function isCliCommand(value) {
@@ -63,6 +70,7 @@ function safeErrorMessage(cause) {
   if (
     cause instanceof CliSessionError ||
     cause instanceof CloudLinkError ||
+    cause instanceof CloudStatusError ||
     cause?.name === "CloudHttpError" ||
     cause?.name === "CredentialStoreError"
   ) {
@@ -81,6 +89,7 @@ export async function runCliCommand(
     whoami = whoamiCli,
     projects = listCloudProjects,
     link = linkCloudProject,
+    status = getCloudProjectStatus,
   } = {},
 ) {
   if (!isCliCommand(command)) {
@@ -237,6 +246,90 @@ export async function runCliCommand(
 
         detail(
           `Config: ${result.configPath}`,
+        );
+
+        spacer();
+        return 0;
+      }
+
+      case "status": {
+        const result = await status();
+
+        success(
+          "Local project configuration valid.",
+        );
+
+        detail(
+          `Project: ${result.local.name}`,
+        );
+
+        detail(
+          `Config: ${result.local.configPath}`,
+        );
+
+        if (result.status === "unlinked") {
+          info(
+            "Local project is not linked to Afrobase Cloud.",
+          );
+
+          detail(
+            'Run "create-afrobase projects" and then "create-afrobase link <projectId>".',
+          );
+
+          spacer();
+          return 0;
+        }
+
+        detail(
+          `Project ID: ${result.local.projectId}`,
+        );
+
+        spacer();
+
+        if (result.status === "inaccessible") {
+          error(
+            "Linked project is not accessible to the authenticated developer.",
+          );
+
+          detail(
+            "Check your organization membership and project access.",
+          );
+
+          spacer();
+          return 1;
+        }
+
+        if (result.status !== "verified") {
+          throw new CloudStatusError(
+            "Unexpected project verification result.",
+            "invalid_status",
+          );
+        }
+
+        success(
+          "Cloud project verified.",
+        );
+
+        detail(
+          `Cloud project: ${result.cloud.name}`,
+        );
+
+        detail(
+          `Organization: ${result.cloud.organization.name}`,
+        );
+
+        detail(
+          `Environment: ${result.cloud.environment ?? "unspecified"}`,
+        );
+
+        detail(
+          `Your role: ${result.cloud.role}`,
+        );
+
+        spacer();
+
+        success(
+          "Local project is linked and accessible.",
         );
 
         spacer();

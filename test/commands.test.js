@@ -400,3 +400,157 @@ test("link command delegates to cloud project linking", async () => {
   assert.equal(exitCode, 0);
   assert.equal(selectedProjectId, projectId);
 });
+
+
+/* ============================================================
+   CLOUD02-E — STATUS COMMAND REGRESSION TESTS
+============================================================ */
+
+test(
+  "status command reports a verified cloud project",
+  async () => {
+    let statusCalled = false;
+
+    const exitCode = await runCliCommand(
+      "status",
+      [],
+      {
+        status: async () => {
+          statusCalled = true;
+
+          return {
+            status: "verified",
+            local: {
+              name: "local-app",
+              configPath: "afrobase.json",
+              projectId:
+                `proj_${"a".repeat(32)}`,
+            },
+            cloud: {
+              name: "Afrobase",
+              environment: "production",
+              organization: {
+                name: "Afrobase",
+              },
+              role: "owner",
+            },
+          };
+        },
+      },
+    );
+
+    assert.equal(statusCalled, true);
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "status command reports an unlinked project without failure",
+  async () => {
+    const exitCode = await runCliCommand(
+      "status",
+      [],
+      {
+        status: async () => ({
+          status: "unlinked",
+          local: {
+            name: "local-app",
+            configPath: "afrobase.json",
+            projectId: null,
+          },
+          cloud: null,
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 0);
+  },
+);
+
+test(
+  "status command fails when linked project is inaccessible",
+  async () => {
+    const exitCode = await runCliCommand(
+      "status",
+      [],
+      {
+        status: async () => ({
+          status: "inaccessible",
+          local: {
+            name: "local-app",
+            configPath: "afrobase.json",
+            projectId:
+              `proj_${"a".repeat(32)}`,
+          },
+          cloud: null,
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "status command rejects unexpected arguments",
+  async () => {
+    let statusCalled = false;
+
+    const exitCode = await runCliCommand(
+      "status",
+      ["unexpected"],
+      {
+        status: async () => {
+          statusCalled = true;
+          return {};
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+    assert.equal(statusCalled, false);
+  },
+);
+
+test(
+  "status command fails safely when cloud verification throws",
+  async () => {
+    const exitCode = await runCliCommand(
+      "status",
+      [],
+      {
+        status: async () => {
+          throw new Error(
+            "Simulated network failure",
+          );
+        },
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
+
+test(
+  "status command rejects an unexpected verification result",
+  async () => {
+    const exitCode = await runCliCommand(
+      "status",
+      [],
+      {
+        status: async () => ({
+          status: "unknown",
+          local: {
+            name: "local-app",
+            configPath: "afrobase.json",
+            projectId:
+              `proj_${"a".repeat(32)}`,
+          },
+          cloud: null,
+        }),
+      },
+    );
+
+    assert.equal(exitCode, 1);
+  },
+);
